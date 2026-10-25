@@ -1,0 +1,14 @@
+node_modules/
+.output/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.turbo
+.drizzle
+docs/
+test-harness/
+test-bubble.html
+scratch/

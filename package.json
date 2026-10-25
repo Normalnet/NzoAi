@@ -1,0 +1,18 @@
+{
+  "name": "nzoai",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:web": "pnpm --filter @nzoai/web dev",
+    "dev:server": "pnpm --filter @nzoai/server dev",
+    "build": "pnpm -r run build",
+    "check-types": "pnpm -r exec tsc --noEmit",
+    "clean": "pnpm -r exec rm -rf node_modules dist .output"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "typescript": "^5.7.3"
+  }
+}
