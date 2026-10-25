@@ -9,6 +9,7 @@ import { Route as RegisterImport } from "./routes/(auth)/register";
 import { Route as OnboardingImport } from "./routes/onboarding/index";
 import { Route as ChoosePlanImport } from "./routes/choose-plan";
 import { Route as SuccessImport } from "./routes/success";
+import { Route as SuperadminImport } from "./routes/superadmin";
 import { Route as BubbleWidgetIdImport } from "./routes/bubble/$widgetId";
 import { Route as TalkPageIdImport } from "./routes/talk/$pageId";
 
@@ -111,6 +112,12 @@ const TalkPageIdRoute = TalkPageIdImport.update({
   getParentRoute: () => rootRoute,
 } as any);
 
+const SuperadminRoute = SuperadminImport.update({
+  id: "/superadmin",
+  path: "/superadmin",
+  getParentRoute: () => rootRoute,
+} as any);
+
 // Admin Routes
 const AdminRoute = AdminRouteImport.update({
   id: "/admin",
@@ -193,5 +200,6 @@ export const routeTree = rootRoute._addFileChildren({
   SuccessRoute,
   BubbleWidgetIdRoute,
   TalkPageIdRoute,
+  SuperadminRoute,
   AdminRoute: AdminRouteWithChildren,
 });

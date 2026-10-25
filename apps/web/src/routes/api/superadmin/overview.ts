@@ -7,6 +7,17 @@ import { count, desc } from "drizzle-orm";
 export const ServerRoute = createServerFileRoute("/api/superadmin/overview").methods({
   GET: async ({ request }) => {
     try {
+      // If visited directly via a web browser (Accept includes text/html), redirect to the graphical Superadmin UI portal
+      const acceptHeader = request.headers.get("accept") || "";
+      if (acceptHeader.includes("text/html")) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/superadmin",
+          },
+        });
+      }
+
       // Enforce strict Platform Superadmin authorization
       const session = await requireSuperAdmin(request);
 

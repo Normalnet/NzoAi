@@ -32,8 +32,8 @@ function SuperadminPage() {
     setError(null);
     try {
       const [overviewRes, statusRes] = await Promise.all([
-        fetch("/api/superadmin/overview"),
-        fetch("/api/system-status"),
+        fetch("/api/superadmin/overview", { headers: { Accept: "application/json" } }),
+        fetch("/api/system-status", { headers: { Accept: "application/json" } }),
       ]);
 
       if (!overviewRes.ok) {
