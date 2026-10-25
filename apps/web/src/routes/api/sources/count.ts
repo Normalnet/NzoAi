@@ -10,24 +10,29 @@ export const ServerRoute = createServerFileRoute("/api/sources/count").methods({
       const authSession = await requireAuthSession(request);
       const activeBotId = authSession.session.activeChatbotId;
 
-      if (!activeBotId) {
-        return new Response(
-          JSON.stringify({ documents: 0, texts: 0, questions: 0, websites: 0, total: 0 }),
-          { headers: { "Content-Type": "application/json" } }
-        );
+      let docCount = 0;
+      let textCount = 0;
+      let qCount = 0;
+      let webCount = 0;
+
+      if (activeBotId) {
+        try {
+          const [docRes, textRes, qRes, webRes] = await Promise.all([
+            db.select({ count: sql<number>`count(*)` }).from(documentSource).where(eq(documentSource.chatbotId, activeBotId)),
+            db.select({ count: sql<number>`count(*)` }).from(textSource).where(eq(textSource.chatbotId, activeBotId)),
+            db.select({ count: sql<number>`count(*)` }).from(question).where(eq(question.chatbotId, activeBotId)),
+            db.select({ count: sql<number>`count(*)` }).from(websiteSource).where(eq(websiteSource.chatbotId, activeBotId)),
+          ]);
+
+          docCount = Number(docRes[0]?.count ?? 0);
+          textCount = Number(textRes[0]?.count ?? 0);
+          qCount = Number(qRes[0]?.count ?? 0);
+          webCount = Number(webRes[0]?.count ?? 0);
+        } catch (dbErr) {
+          // graceful zero fallback if DB is uninitialized
+        }
       }
 
-      const [docRes, textRes, qRes, webRes] = await Promise.all([
-        db.select({ count: sql<number>`count(*)` }).from(documentSource).where(eq(documentSource.chatbotId, activeBotId)),
-        db.select({ count: sql<number>`count(*)` }).from(textSource).where(eq(textSource.chatbotId, activeBotId)),
-        db.select({ count: sql<number>`count(*)` }).from(question).where(eq(question.chatbotId, activeBotId)),
-        db.select({ count: sql<number>`count(*)` }).from(websiteSource).where(eq(websiteSource.chatbotId, activeBotId)),
-      ]);
-
-      const docCount = Number(docRes[0]?.count ?? 0);
-      const textCount = Number(textRes[0]?.count ?? 0);
-      const qCount = Number(qRes[0]?.count ?? 0);
-      const webCount = Number(webRes[0]?.count ?? 0);
       const total = docCount + textCount + qCount + webCount;
 
       return new Response(

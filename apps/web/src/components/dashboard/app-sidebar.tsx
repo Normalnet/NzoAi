@@ -13,7 +13,6 @@ import {
   Bot,
   LogOut,
   ChevronDown,
-  Crown,
 } from "lucide-react";
 import { signOut } from "../../lib/auth-client";
 
@@ -36,7 +35,6 @@ export function AppSidebar({ chatbotName = "My Chatbot", chatbotColor = "#800020
     { label: "Activity", href: "/admin/activity", icon: Activity },
     { label: "Analytics", href: "/admin/analytics", icon: BarChart2 },
     { label: "Settings", href: "/admin/settings", icon: Settings },
-    { label: "Superadmin", href: "/admin/superadmin", icon: Crown },
   ];
 
   return (

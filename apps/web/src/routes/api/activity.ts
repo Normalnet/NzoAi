@@ -14,23 +14,34 @@ export const ServerRoute = createServerFileRoute("/api/activity").methods({
         return new Response(JSON.stringify({ activities: [] }), { headers: { "Content-Type": "application/json" } });
       }
 
-      const [leadsList, feedbackList, issuesList] = await Promise.all([
-        db.query.lead.findMany({
-          where: eq(lead.chatbotId, activeBotId),
-          orderBy: [desc(lead.createdAt)],
-          limit: 50,
-        }),
-        db.query.feedback.findMany({
-          where: eq(feedback.chatbotId, activeBotId),
-          orderBy: [desc(feedback.createdAt)],
-          limit: 50,
-        }),
-        db.query.issueReport.findMany({
-          where: eq(issueReport.chatbotId, activeBotId),
-          orderBy: [desc(issueReport.createdAt)],
-          limit: 50,
-        }),
-      ]);
+      let leadsList: any[] = [];
+      let feedbackList: any[] = [];
+      let issuesList: any[] = [];
+
+      try {
+        const res = await Promise.all([
+          db.query.lead.findMany({
+            where: eq(lead.chatbotId, activeBotId),
+            orderBy: [desc(lead.createdAt)],
+            limit: 50,
+          }),
+          db.query.feedback.findMany({
+            where: eq(feedback.chatbotId, activeBotId),
+            orderBy: [desc(feedback.createdAt)],
+            limit: 50,
+          }),
+          db.query.issueReport.findMany({
+            where: eq(issueReport.chatbotId, activeBotId),
+            orderBy: [desc(issueReport.createdAt)],
+            limit: 50,
+          }),
+        ]);
+        leadsList = res[0] || [];
+        feedbackList = res[1] || [];
+        issuesList = res[2] || [];
+      } catch (dbErr) {
+        // fallback empty lists if db query fails
+      }
 
       const activities = [
         ...leadsList.map((item) => ({ ...item, type: "lead" })),

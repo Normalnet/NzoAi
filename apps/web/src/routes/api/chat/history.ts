@@ -34,11 +34,16 @@ export const ServerRoute = createServerFileRoute("/api/chat/history").methods({
         }
       }
 
-      const chats = await db.query.chat.findMany({
-        where: and(...conditions),
-        orderBy: [desc(chat.createdAt)],
-        limit: limit + 1,
-      });
+      let chats: any[] = [];
+      try {
+        chats = await db.query.chat.findMany({
+          where: and(...conditions),
+          orderBy: [desc(chat.createdAt)],
+          limit: limit + 1,
+        });
+      } catch (dbErr) {
+        chats = [];
+      }
 
       let nextCursor: string | null = null;
       if (chats.length > limit) {
