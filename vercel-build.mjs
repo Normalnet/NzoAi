@@ -25,7 +25,7 @@ await build({
   outfile: path.join(funcDir, "index.mjs"),
   bundle: true,
   platform: "node",
-  target: "node20",
+  target: "node22",
   format: "esm",
   tsconfig: path.join(root, "tsconfig.json"),
   external: ["pg-native"],
@@ -39,7 +39,7 @@ writeFileSync(
   path.join(funcDir, ".vc-config.json"),
   JSON.stringify(
     {
-      runtime: "nodejs20.x",
+      runtime: "nodejs22.x",
       handler: "index.mjs",
       launcherType: "Nodejs",
       shouldAddHelpers: false,
