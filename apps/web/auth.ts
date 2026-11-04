@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
@@ -6,6 +9,14 @@ import * as schema from "./src/db/schema";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { v4 as uuidv4 } from "uuid";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

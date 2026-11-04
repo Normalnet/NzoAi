@@ -39,7 +39,8 @@ export const ServerRoute = createServerFileRoute("/api/crawl").methods({
         );
       }
 
-      const webhookUrl = `${process.env.WEBHOOK_BASE_URL || "http://localhost:3001"}/api/firecrawl-webhook`;
+      const webhookBase = process.env.WEBHOOK_BASE_URL || "http://localhost:3001";
+      const webhookUrl = `${webhookBase}/api/firecrawl-webhook?chatbotId=${encodeURIComponent(activeBotId)}`;
 
       const crawlRes = await fetch("https://api.firecrawl.dev/v1/crawl", {
         method: "POST",

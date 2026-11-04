@@ -1,5 +1,7 @@
 import { createServerFileRoute } from "@/lib/server-route";
 import { requireAuthSession } from "../../middlewares/auth";
+import { getStorageClient, uploadToStorage } from "@/lib/storage";
+import { v4 as uuidv4 } from "uuid";
 
 export const ServerRoute = createServerFileRoute("/api/upload-images").methods({
   POST: async ({ request }) => {
@@ -19,9 +21,17 @@ export const ServerRoute = createServerFileRoute("/api/upload-images").methods({
       }
 
       const buffer = Buffer.from(await file.arrayBuffer());
-      const base64 = buffer.toString("base64");
       const mime = file.type || "image/png";
-      const publicUrl = `data:${mime};base64,${base64}`;
+      let publicUrl = "";
+
+      const storageClient = getStorageClient();
+      if (storageClient) {
+        const key = `images/${uuidv4()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        publicUrl = await uploadToStorage(key, buffer, mime);
+      } else {
+        const base64 = buffer.toString("base64");
+        publicUrl = `data:${mime};base64,${base64}`;
+      }
 
       return new Response(
         JSON.stringify({

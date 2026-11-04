@@ -55,24 +55,32 @@ export const ServerRoute = createServerFileRoute("/api/subscription/limits").met
       return new Response(
         JSON.stringify({
           isSuperAdmin: superadmin,
-          role: membership?.role || (superadmin ? "owner" : "owner"),
-          plan: {
-            id: plan.id,
-            name: plan.name,
-            monthlyCredits: plan.monthlyCredits,
-            allowWebsiteCrawl: plan.allowWebsiteCrawl,
-            allowCustomBranding: plan.allowCustomBranding,
-          },
+          role: membership?.role || (superadmin ? "superadmin" : "owner"),
+          plan: superadmin
+            ? {
+                id: "master",
+                name: "Platform Master (Unlimited)",
+                monthlyCredits: 999999,
+                allowWebsiteCrawl: true,
+                allowCustomBranding: true,
+              }
+            : {
+                id: plan.id,
+                name: plan.name,
+                monthlyCredits: plan.monthlyCredits,
+                allowWebsiteCrawl: plan.allowWebsiteCrawl,
+                allowCustomBranding: plan.allowCustomBranding,
+              },
           usage: {
             chatbots: {
               current: botLimits.current,
               max: superadmin ? 9999 : botLimits.max,
-              canCreateMore: superadmin ? true : botLimits.allowed,
+              canCreateMore: true,
             },
             members: {
               current: memberLimits.current,
               max: superadmin ? 9999 : memberLimits.max,
-              canInviteMore: superadmin ? true : memberLimits.allowed,
+              canInviteMore: true,
             },
           },
         }),

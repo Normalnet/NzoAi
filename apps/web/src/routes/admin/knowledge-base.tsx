@@ -106,9 +106,12 @@ function KnowledgeBasePage() {
             type: upData.type,
             size: upData.size,
             url: upData.url,
+            content: upData.content,
           }),
         });
         loadAll();
+      } else if (upData.error) {
+        alert(upData.error);
       }
     } catch (err) {
       console.error(err);

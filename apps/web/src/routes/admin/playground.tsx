@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChatPreview } from "../../components/chat/chat-preview";
+import { Provider as ChatStoreProvider } from "@nzoai/store";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -33,8 +34,25 @@ function PlaygroundPage() {
   const [chatId, setChatId] = useState(uuidv4());
   const [messages, setMessages] = useState<any[]>([]);
   const [chatStatus, setChatStatus] = useState("ready"); // 'ready' | 'submitted' | 'streaming'
+  const [availableModels, setAvailableModels] = useState<any[]>([
+    { id: "gpt-4o-mini", displayName: "NzoOpen Mini Fast", badge: "Fast" },
+    { id: "gpt-4o", displayName: "NzoOpen 4 Basic", badge: "Flagship" },
+    { id: "gemini-2.0-flash", displayName: "NzoGem 3 Cool", badge: "Popular" },
+  ]);
+  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
 
   const loadBot = () => {
+    fetch("/api/models")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.models) && data.models.length > 0) {
+          setAvailableModels(data.models);
+          const def = data.models.find((m: any) => m.isDefault);
+          if (def) setSelectedModel(def.id);
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/my-chatbot")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -68,7 +86,7 @@ function PlaygroundPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: chatId, messages: newMessages }),
+        body: JSON.stringify({ id: chatId, messages: newMessages, model: selectedModel }),
       });
 
       if (!res.ok) {
@@ -186,20 +204,22 @@ function PlaygroundPage() {
         {/* Left: Interactive Chat Preview */}
         <div className="lg:col-span-7 h-[650px] flex flex-col">
           {chatbot ? (
-            <ChatPreview
-              chatbot={{
-                ...chatbot,
-                name: formData.name || chatbot.name,
-                primaryColor: formData.primaryColor,
-                initialMessage: formData.initialMessage,
-                suggestedMessages: formData.suggestedMessages,
-                hidePoweredBy: formData.hidePoweredBy,
-              }}
-              messages={messages}
-              status={chatStatus}
-              onSendMessage={handleSendMessage}
-              onReset={handleResetChat}
-            />
+            <ChatStoreProvider initialMessages={messages} initialId={chatId}>
+              <ChatPreview
+                chatbot={{
+                  ...chatbot,
+                  name: formData.name || chatbot.name,
+                  primaryColor: formData.primaryColor,
+                  initialMessage: formData.initialMessage,
+                  suggestedMessages: formData.suggestedMessages,
+                  hidePoweredBy: formData.hidePoweredBy,
+                }}
+                messages={messages}
+                status={chatStatus}
+                onSendMessage={handleSendMessage}
+                onReset={handleResetChat}
+              />
+            </ChatStoreProvider>
           ) : (
             <div className="h-full flex items-center justify-center border rounded-2xl bg-muted/20">
               <span className="text-sm text-muted-foreground">Loading chatbot preview...</span>
@@ -257,6 +277,28 @@ function PlaygroundPage() {
                     <option value="lead">Lead Capture Assistant</option>
                     <option value="custom">Custom Brand Representative</option>
                   </select>
+                </div>
+
+                {/* AI Model Selection */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-medium text-foreground">Active Intelligence Model</label>
+                    <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded font-medium">NzoAI Catalog</span>
+                  </div>
+                  <select
+                    className="w-full h-8 px-2 rounded-md border bg-background text-xs font-medium"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                  >
+                    {availableModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName} {m.badge ? `(${m.badge})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Superadmin-configured intelligence engine for live conversational synthesis.
+                  </p>
                 </div>
 
                 {/* Initial Greeting */}

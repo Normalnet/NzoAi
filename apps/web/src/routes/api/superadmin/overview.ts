@@ -2,7 +2,7 @@ import { createServerFileRoute } from "@/lib/server-route";
 import { requireSuperAdmin } from "../../../middlewares/auth";
 import { db } from "../../../db";
 import { user, organization, chatbot, chat, subscription, member } from "../../../db/schema";
-import { count, desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 
 export const ServerRoute = createServerFileRoute("/api/superadmin/overview").methods({
   GET: async ({ request }) => {
@@ -29,15 +29,9 @@ export const ServerRoute = createServerFileRoute("/api/superadmin/overview").met
         subscriptionsCount: 1,
       };
 
-      let recentOrgs: any[] = [
-        {
-          id: session.session?.activeOrganizationId || "org_primary_01",
-          name: "NzoAI Workspace",
-          slug: "nzoai-workspace",
-          chatbotCount: 1,
-          createdAt: new Date(),
-        },
-      ];
+      let allOrgs: any[] = [];
+      let allUsers: any[] = [];
+      let allChatbots: any[] = [];
 
       try {
         const [
@@ -47,6 +41,9 @@ export const ServerRoute = createServerFileRoute("/api/superadmin/overview").met
           totalChats,
           totalSubscriptions,
           fetchedOrgs,
+          fetchedUsers,
+          fetchedBots,
+          fetchedSubs,
         ] = await Promise.all([
           db.select({ count: count() }).from(user),
           db.select({ count: count() }).from(organization),
@@ -55,7 +52,19 @@ export const ServerRoute = createServerFileRoute("/api/superadmin/overview").met
           db.select({ count: count() }).from(subscription),
           db.query.organization.findMany({
             orderBy: [desc(organization.createdAt)],
-            limit: 20,
+            limit: 100,
+          }),
+          db.query.user.findMany({
+            orderBy: [desc(user.createdAt)],
+            limit: 100,
+          }),
+          db.query.chatbot.findMany({
+            orderBy: [desc(chatbot.createdAt)],
+            limit: 100,
+          }),
+          db.query.subscription.findMany({
+            orderBy: [desc(subscription.createdAt)],
+            limit: 100,
           }),
         ]);
 
@@ -67,18 +76,57 @@ export const ServerRoute = createServerFileRoute("/api/superadmin/overview").met
           subscriptionsCount: totalSubscriptions[0]?.count || 1,
         };
 
-        if (fetchedOrgs && fetchedOrgs.length > 0) {
-          recentOrgs = fetchedOrgs;
+        // Map plan tiers from subscriptions to organizations
+        const subByOrgId: Record<string, any> = {};
+        for (const sub of fetchedSubs) {
+          if (sub.referenceId) {
+            subByOrgId[sub.referenceId] = sub;
+          }
         }
+
+        allOrgs = fetchedOrgs.map((org) => {
+          const sub = subByOrgId[org.id];
+          return {
+            ...org,
+            planTier: sub?.productId || "starter",
+            subStatus: sub?.status || "active",
+          };
+        });
+
+        allUsers = fetchedUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          createdAt: u.createdAt,
+        }));
+
+        allChatbots = fetchedBots.map((bot) => {
+          const org = fetchedOrgs.find((o) => o.id === bot.organizationId);
+          return {
+            ...bot,
+            organizationName: org?.name || "Unknown Workspace",
+          };
+        });
       } catch (dbErr) {
-        // Fallback default metrics when database is unseeded
+        console.warn("[superadmin] Database query error:", dbErr);
       }
 
       return new Response(
         JSON.stringify({
           superadmin: session.user.email,
           metrics,
-          recentOrganizations: recentOrgs,
+          organizations: allOrgs,
+          users: allUsers,
+          chatbots: allChatbots,
+          platformSettings: {
+            openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+            paystackConfigured: Boolean(process.env.PAYSTACK_SECRET_KEY),
+            firecrawlConfigured: Boolean(process.env.FIRECRAWL_API_KEY),
+            databaseUrlConfigured: Boolean(process.env.DATABASE_URL),
+            superadminEmails: process.env.SUPERADMIN_EMAILS || "founder@nzoai.com,admin@nzoai.com",
+            version: "2.4.0-enterprise",
+          },
           timestamp: new Date().toISOString(),
         }),
         { headers: { "Content-Type": "application/json" } }

@@ -27,20 +27,26 @@ function OnboardingPage() {
     } else {
       setLoading(true);
       try {
-        // Create or configure chatbot
-        await fetch("/api/my-chatbot", {
-          method: "PATCH",
+        const res = await fetch("/api/onboarding/complete", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: botName || `${orgName} Assistant`,
+            orgName,
+            botName: botName.trim() || `${orgName} Assistant`,
             primaryColor,
             personality,
+            teammateEmail: teammateEmail.trim() || undefined,
           }),
         });
 
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Onboarding finalization failed");
+        }
+
         router.navigate({ to: "/admin/overview" });
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error("[onboarding client error]:", err);
         router.navigate({ to: "/admin/overview" });
       } finally {
         setLoading(false);

@@ -2,8 +2,20 @@ import React, { useState, useEffect } from "react";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppSidebar } from "../../components/dashboard/app-sidebar";
 import { ShareDialog } from "../../components/share-bot/share-dialog";
+import { authClient } from "../../lib/auth-client";
 
 export const Route = createFileRoute("/admin")({
+  beforeLoad: async () => {
+    try {
+      const session = await authClient.getSession();
+      if (!session?.data?.user) {
+        throw redirect({ to: "/login" });
+      }
+    } catch (err: any) {
+      if (err?.isRedirect || err?.to) throw err;
+      throw redirect({ to: "/login" });
+    }
+  },
   component: AdminLayout,
 });
 

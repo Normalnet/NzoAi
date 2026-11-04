@@ -1,7 +1,7 @@
 import { auth } from "../../auth";
 import { ChatSDKError } from "../lib/errors";
 import { db } from "../db";
-import { member, user } from "../db/schema";
+import { member, user, chatbot } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function getSessionFromRequest(request: Request): Promise<any> {
@@ -10,38 +10,41 @@ export async function getSessionFromRequest(request: Request): Promise<any> {
       headers: request.headers,
     });
     if (session && session.user) {
-      return session as any;
+      const sessObj = session as any;
+      // Ensure activeOrganizationId and activeChatbotId are resolved from user membership if not present
+      if (!sessObj.session.activeOrganizationId && sessObj.user.id) {
+        try {
+          const membership = await db.query.member.findFirst({
+            where: eq(member.userId, sessObj.user.id),
+          });
+          if (membership) {
+            sessObj.session.activeOrganizationId = membership.organizationId;
+            const bot = await db.query.chatbot.findFirst({
+              where: eq(chatbot.organizationId, membership.organizationId),
+            });
+            if (bot) {
+              sessObj.session.activeChatbotId = bot.id;
+            }
+          }
+        } catch (resolveErr) {
+          console.warn("[auth] Failed to resolve active membership:", resolveErr);
+        }
+      } else if (sessObj.session.activeOrganizationId && !sessObj.session.activeChatbotId) {
+        try {
+          const bot = await db.query.chatbot.findFirst({
+            where: eq(chatbot.organizationId, sessObj.session.activeOrganizationId),
+          });
+          if (bot) {
+            sessObj.session.activeChatbotId = bot.id;
+          }
+        } catch (resolveBotErr) {
+          console.warn("[auth] Failed to resolve active chatbot:", resolveBotErr);
+        }
+      }
+      return sessObj;
     }
   } catch (err) {
-    // continue to fallback
-  }
-
-  // Development & Local Environment Fallback:
-  // When running locally in development mode without a session cookie,
-  // provide a seeded development workspace session so all dashboard routes work seamlessly.
-  const host = request.headers.get("host") || "";
-  const isDev =
-    process.env.NODE_ENV !== "production" ||
-    host.includes("localhost") ||
-    host.includes("127.0.0.1");
-
-  if (isDev) {
-    return {
-      user: {
-        id: "dev_user_founder",
-        name: "Platform Founder",
-        email: "founder@nzoai.com",
-        role: "superadmin",
-        isSubscribed: true,
-      },
-      session: {
-        id: "dev_session_01",
-        userId: "dev_user_founder",
-        activeOrganizationId: "dev_org_01",
-        activeChatbotId: "dev_bot_01",
-      },
-      isDevFallback: true,
-    };
+    // Session token invalid or expired
   }
 
   return null;

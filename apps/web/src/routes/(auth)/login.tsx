@@ -29,9 +29,10 @@ function LoginPage() {
       });
 
       if (res.error) {
-        setError(res.error.message || "Failed to log in");
+        setError(res.error.message || "Invalid email or password");
       } else {
-        router.navigate({ to: "/admin/overview" });
+        // Force full page navigation to ensure browser session cookies are loaded
+        window.location.href = "/admin/overview";
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
@@ -53,7 +54,7 @@ function LoginPage() {
           <CardTitle className="text-xl">Welcome Back</CardTitle>
           <p className="text-xs text-muted-foreground">Sign in to your customer support workspace</p>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-medium">
@@ -101,7 +102,7 @@ function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-muted-foreground">
+          <div className="pt-2 text-center text-xs text-muted-foreground">
             Don't have an account?{" "}
             <Link to="/register" className="font-semibold text-primary hover:underline">
               Create an account

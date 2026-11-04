@@ -12,3 +12,11 @@ docs/
 test-harness/
 test-bubble.html
 scratch/
+.neon
+.agents/
+skills-lock.json
+scripts/
+apps/web/scripts/
+check-*.cjs
+check-*.mjs
+test-*.mjs

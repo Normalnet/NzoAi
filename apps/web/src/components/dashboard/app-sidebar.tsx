@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -13,6 +13,7 @@ import {
   Bot,
   LogOut,
   ChevronDown,
+  Crown,
 } from "lucide-react";
 import { signOut } from "../../lib/auth-client";
 
@@ -25,6 +26,18 @@ interface AppSidebarProps {
 export function AppSidebar({ chatbotName = "My Chatbot", chatbotColor = "#800020", onShareClick }: AppSidebarProps) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/subscription/limits")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.isSuperAdmin) {
+          setIsSuperAdmin(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const navItems = [
     { label: "Overview", href: "/admin/overview", icon: LayoutDashboard },
@@ -51,6 +64,22 @@ export function AppSidebar({ chatbotName = "My Chatbot", chatbotColor = "#800020
           <span>NzoAI</span>
         </Link>
       </div>
+
+      {/* Superadmin Platform Backoffice Quick Link */}
+      {isSuperAdmin && (
+        <div className="p-3 pb-0">
+          <Link
+            to="/superadmin"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 hover:bg-amber-500/20 text-xs font-semibold transition-all group"
+          >
+            <Crown className="w-4 h-4 text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+            <div className="flex-1 truncate">
+              <span className="block leading-tight font-bold">Platform Superadmin</span>
+              <span className="block text-[10px] text-amber-600/80 font-normal">NzoAI Backoffice & Control</span>
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* Active Bot Switcher / Badge */}
       <div className="p-3 border-b bg-muted/20">

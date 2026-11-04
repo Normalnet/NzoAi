@@ -54,6 +54,19 @@ export async function handleDevApiRequest(
       // 2. Static Route Map
       const routeMap: Record<string, () => Promise<{ ServerRoute: any }>> = {
         "/api/superadmin/overview": () => import("./routes/api/superadmin/overview"),
+        "/api/superadmin/organization/create": () => import("./routes/api/superadmin/organization/create"),
+        "/api/superadmin/organization/update": () => import("./routes/api/superadmin/organization/update"),
+        "/api/superadmin/organization/delete": () => import("./routes/api/superadmin/organization/delete"),
+        "/api/superadmin/organization/features": () => import("./routes/api/superadmin/organization/features"),
+        "/api/superadmin/user/create": () => import("./routes/api/superadmin/user/create"),
+        "/api/superadmin/user/update": () => import("./routes/api/superadmin/user/update"),
+        "/api/superadmin/user/delete": () => import("./routes/api/superadmin/user/delete"),
+        "/api/superadmin/user/reset-password": () => import("./routes/api/superadmin/user/reset-password"),
+        "/api/superadmin/user/impersonate": () => import("./routes/api/superadmin/user/impersonate"),
+        "/api/superadmin/chatbot/delete": () => import("./routes/api/superadmin/chatbot/delete"),
+        "/api/superadmin/models": () => import("./routes/api/superadmin/models"),
+        "/api/models": () => import("./routes/api/models"),
+        "/api/organization": () => import("./routes/api/organization"),
         "/api/subscription/limits": () => import("./routes/api/subscription/limits"),
         "/api/system-status": () => import("./routes/api/system-status"),
         "/api/chatbots": () => import("./routes/api/chatbots"),
@@ -62,6 +75,7 @@ export async function handleDevApiRequest(
         "/api/set-active-chatbot": () => import("./routes/api/set-active-chatbot"),
         "/api/invite-member": () => import("./routes/api/invite-member"),
         "/api/crawl": () => import("./routes/api/crawl"),
+        "/api/firecrawl-webhook": () => import("./routes/api/firecrawl-webhook"),
         "/api/scrape": () => import("./routes/api/scrape"),
         "/api/chat": () => import("./routes/api/chat"),
         "/api/chat/history": () => import("./routes/api/chat/history"),
@@ -83,9 +97,14 @@ export async function handleDevApiRequest(
         "/api/agent-actions": () => import("./routes/api/agent-actions"),
         "/api/upload-documents": () => import("./routes/api/upload-documents"),
         "/api/upload-images": () => import("./routes/api/upload-images"),
+        "/api/neon-function": () => import("./routes/api/neon-function"),
+        "/api/realtime-seal": () => import("./routes/api/realtime-seal"),
         "/api/checkout": () => import("./routes/api/checkout"),
+        "/api/webhook/paystack": () => import("./routes/api/webhook/paystack"),
         "/api/webhook/polar": () => import("./routes/api/webhook/polar"),
         "/api/embed/generate-token": () => import("./routes/api/embed/generate-token"),
+        "/api/onboarding/complete": () => import("./routes/api/onboarding/complete"),
+        "/api/accept-invitation": () => import("./routes/api/accept-invitation"),
       };
 
       if (routeMap[pathname]) {
@@ -125,8 +144,20 @@ export async function handleDevApiRequest(
 
     // Write back standard Web Response to Node ServerResponse
     res.statusCode = response.status;
+
+    // Handle multi-value Set-Cookie headers cleanly
+    const getSetCookie = (response.headers as any).getSetCookie;
+    if (typeof getSetCookie === "function") {
+      const cookies = getSetCookie.call(response.headers);
+      if (Array.isArray(cookies) && cookies.length > 0) {
+        res.setHeader("set-cookie", cookies);
+      }
+    }
+
     response.headers.forEach((val, key) => {
-      res.setHeader(key, val);
+      if (key.toLowerCase() !== "set-cookie") {
+        res.setHeader(key, val);
+      }
     });
 
     if (response.body) {

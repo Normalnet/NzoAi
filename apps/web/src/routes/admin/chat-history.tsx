@@ -62,14 +62,24 @@ function ChatHistoryPage() {
   // Load transcript when selected chat changes
   useEffect(() => {
     if (!selectedChat?.id) return;
-    // We can fetch votes / messages for the chat
-    fetch(`/api/chat/history?status=all&limit=100`)
+    fetch(`/api/chat/history?chatId=${selectedChat.id}`)
       .then((r) => r.ok && r.json())
-      .then(() => {
-        // Mock / load messages for selected chat
+      .then((d) => {
+        if (d?.messages) {
+          setChatMessages(d.messages);
+        } else {
+          setChatMessages([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load chat messages:", err);
         setChatMessages([]);
       });
   }, [selectedChat?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isTyping]);
 
   // WebSocket connection for real-time escalation reply
   const isEscalated = selectedChat?.status === "escalated";

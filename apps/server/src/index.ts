@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
-import { setupWebSocket } from "./lib/websocket.js";
+import { setupWebSocket, broadcastEscalationAlert } from "./lib/websocket.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -26,6 +26,9 @@ app.get("/api/health", (_req, res) => {
 app.post("/api/escalations/notify", (req, res) => {
   const { chatId, reason, summary } = req.body || {};
   console.log(`[server] Received escalation notification for chat ${chatId}: ${reason}`);
+  if (chatId) {
+    broadcastEscalationAlert(chatId, { reason, summary });
+  }
   res.json({ received: true, chatId, summary });
 });
 

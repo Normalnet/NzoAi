@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db";
 import { documentSource, knowledge } from "../../db/schema";
 import { requireAuthSession } from "../../middlewares/auth";
+import { extractTextFromDocument } from "../../lib/ai/document-chunking";
 
 export const ServerRoute = createServerFileRoute("/api/document-source").methods({
   GET: async ({ request }) => {
@@ -37,11 +38,30 @@ export const ServerRoute = createServerFileRoute("/api/document-source").methods
         return new Response(JSON.stringify({ error: "No active chatbot selected" }), { status: 400 });
       }
 
-      const { name, type, size, url } = await request.json();
+      const { name, type, size, url, content } = await request.json();
 
-      if (!name || !url) {
-        return new Response(JSON.stringify({ error: "name and url are required" }), { status: 400 });
+      if (!name || (!url && !content)) {
+        return new Response(JSON.stringify({ error: "name and either url or content are required" }), { status: 400 });
       }
+
+      let finalContent = content || "";
+
+      // Fallback: If content was not passed directly but a data URL was provided, extract it
+      if (!finalContent && url && typeof url === "string" && url.startsWith("data:")) {
+        try {
+          const match = url.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            const mimeType = match[1];
+            const buffer = Buffer.from(match[2], "base64");
+            finalContent = await extractTextFromDocument(buffer, mimeType, name);
+            finalContent = finalContent.replace(/\0/g, "").trim();
+          }
+        } catch (extractErr) {
+          console.warn("[document-source] Fallback text extraction failed:", extractErr);
+        }
+      }
+
+      const documentUrl = url || `direct://docs/${uuidv4()}/${encodeURIComponent(name)}`;
 
       const [created] = await db
         .insert(documentSource)
@@ -51,7 +71,8 @@ export const ServerRoute = createServerFileRoute("/api/document-source").methods
           name,
           type: type || "application/octet-stream",
           size: Number(size || 0),
-          url,
+          url: documentUrl,
+          content: finalContent || null,
         })
         .returning();
 

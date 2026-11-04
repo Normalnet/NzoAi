@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS "document_source" (
   "type" text NOT NULL,
   "size" integer NOT NULL,
   "url" text NOT NULL,
+  "content" text,
   "created_at" timestamp DEFAULT now() NOT NULL
 );
 

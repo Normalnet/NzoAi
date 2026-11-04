@@ -30,7 +30,9 @@ export const ServerRoute = createServerFileRoute("/api/chat/assign-agent").metho
         headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), { status: err.statusCode || 500 });
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status || err.statusCode || 500,
+      });
     }
   },
 });

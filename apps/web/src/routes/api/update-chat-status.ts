@@ -24,7 +24,9 @@ export const ServerRoute = createServerFileRoute("/api/update-chat-status").meth
         headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), { status: err.statusCode || 500 });
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status || err.statusCode || 500,
+      });
     }
   },
 });

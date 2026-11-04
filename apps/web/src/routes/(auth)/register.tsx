@@ -33,7 +33,7 @@ function RegisterPage() {
       if (res.error) {
         setError(res.error.message || "Failed to create account");
       } else {
-        router.navigate({ to: "/onboarding" });
+        window.location.href = "/onboarding";
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

@@ -219,6 +219,7 @@ export const documentSource = pgTable("document_source", {
   type: text("type").notNull(),
   size: integer("size").notNull(),
   url: text("url").notNull(),
+  content: text("content"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

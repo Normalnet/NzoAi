@@ -3,7 +3,7 @@ import { streamText, convertToCoreMessages } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { chatbot, chat } from "../../db/schema";
-import { CHAT_MODEL } from "../../lib/ai/providers";
+import { CHAT_MODEL, getChatModel } from "../../lib/ai/providers";
 import { systemPrompt } from "../../lib/ai/prompts/system-prompt";
 import { getActiveActionsForChatbot } from "../../lib/ai/get-active-tools";
 import { buildActiveTools } from "../../lib/ai/build-active-tools";
@@ -33,7 +33,7 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
       }
 
       const body = await request.json();
-      const { id: chatId, messages } = body;
+      const { id: chatId, messages, model: requestedModel } = body;
 
       if (!chatId || !messages || !Array.isArray(messages)) {
         return new Response(JSON.stringify({ error: "Missing required parameters: id, messages" }), { status: 400 });
@@ -85,7 +85,7 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
       const tools = buildActiveTools(chatId, activeBotId, actionsMap);
 
       const result = streamText({
-        model: CHAT_MODEL,
+        model: getChatModel(requestedModel || "gpt-4o-mini"),
         system: prompt,
         messages: convertToCoreMessages(messages),
         tools,

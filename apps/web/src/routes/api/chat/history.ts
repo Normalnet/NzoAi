@@ -1,5 +1,5 @@
 import { createServerFileRoute } from "@/lib/server-route";
-import { eq, and, desc, lt } from "drizzle-orm";
+import { eq, and, desc, asc, lt } from "drizzle-orm";
 import { db } from "../../../db";
 import { chat, message } from "../../../db/schema";
 import { requireAuthSession } from "../../../middlewares/auth";
@@ -17,6 +17,29 @@ export const ServerRoute = createServerFileRoute("/api/chat/history").methods({
       }
 
       const url = new URL(request.url);
+      const chatIdParam = url.searchParams.get("chatId");
+
+      // 1. If chatId is provided, return transcript messages
+      if (chatIdParam) {
+        const targetChat = await db.query.chat.findFirst({
+          where: and(eq(chat.id, chatIdParam), eq(chat.chatbot_id, activeBotId)),
+        });
+
+        if (!targetChat) {
+          return new Response(JSON.stringify({ error: "Chat not found" }), { status: 404 });
+        }
+
+        const messages = await db.query.message.findMany({
+          where: eq(message.chatId, chatIdParam),
+          orderBy: [asc(message.createdAt)],
+        });
+
+        return new Response(JSON.stringify({ chatId: chatIdParam, chat: targetChat, messages }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // 2. Otherwise return conversation list for inbox
       const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") || 20)));
       const cursor = url.searchParams.get("cursor");
       const statusFilter = url.searchParams.get("status"); // 'all' | 'unresolved' | 'resolved' | 'escalated'
@@ -55,7 +78,9 @@ export const ServerRoute = createServerFileRoute("/api/chat/history").methods({
         headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message }), { status: err.statusCode || 500 });
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status || err.statusCode || 500,
+      });
     }
   },
 });

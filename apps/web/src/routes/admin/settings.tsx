@@ -12,6 +12,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Crown,
+  Save,
+  Coins,
+  Settings as SettingsIcon,
+  ShieldAlert,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -30,15 +34,29 @@ function SettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"workspace" | "billing">("workspace");
 
+  // Organization settings state
+  const [orgName, setOrgName] = useState("");
+  const [orgSlug, setOrgSlug] = useState("");
+  const [orgSaving, setOrgSaving] = useState(false);
+  const [orgSuccess, setOrgSuccess] = useState(false);
+  const [orgError, setOrgError] = useState("");
+
+  // Superadmin quick controls
+  const [selectedPlanTier, setSelectedPlanTier] = useState("enterprise");
+  const [grantCreditsAmount, setGrantCreditsAmount] = useState<number>(5000);
+  const [superadminActionLoading, setSuperadminActionLoading] = useState(false);
+  const [superadminActionMsg, setSuperadminActionMsg] = useState("");
+
   const [limitsData, setLimitsData] = useState<any>(null);
   const [membersList, setMembersList] = useState<any[]>([]);
   const [invitationsList, setInvitationsList] = useState<any[]>([]);
 
   const fetchLimitsAndMembers = async () => {
     try {
-      const [limRes, memRes] = await Promise.all([
+      const [limRes, memRes, orgRes] = await Promise.all([
         fetch("/api/subscription/limits"),
         fetch("/api/invite-member"),
+        fetch("/api/organization"),
       ]);
 
       if (limRes.ok) {
@@ -51,6 +69,17 @@ function SettingsPage() {
         setMembersList(mem.members || []);
         setInvitationsList(mem.invitations || []);
       }
+
+      if (orgRes.ok) {
+        const orgData = await orgRes.json();
+        if (orgData?.organization) {
+          setOrgName(orgData.organization.name || "");
+          setOrgSlug(orgData.organization.slug || "");
+        }
+        if (orgData?.plan?.id) {
+          setSelectedPlanTier(orgData.plan.id);
+        }
+      }
     } catch (err) {
       console.warn("Error fetching workspace settings data:", err);
     }
@@ -59,6 +88,70 @@ function SettingsPage() {
   useEffect(() => {
     fetchLimitsAndMembers();
   }, []);
+
+  const handleSaveOrganization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrgSaving(true);
+    setOrgError("");
+    setOrgSuccess(false);
+
+    try {
+      const res = await fetch("/api/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: orgName,
+          slug: orgSlug,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setOrgError(data.error || "Failed to save organization settings.");
+      } else {
+        setOrgSuccess(true);
+        setTimeout(() => setOrgSuccess(false), 4000);
+        fetchLimitsAndMembers();
+      }
+    } catch (err: any) {
+      setOrgError(err.message || "Failed to update organization.");
+    } finally {
+      setOrgSaving(false);
+    }
+  };
+
+  const handleSuperadminOverride = async (tier: string, credits?: number) => {
+    setSuperadminActionLoading(true);
+    setSuperadminActionMsg("");
+
+    try {
+      const res = await fetch("/api/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planTier: tier,
+          grantCredits: credits || 0,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuperadminActionMsg(
+          credits
+            ? `Granted +${credits.toLocaleString()} credits to workspace!`
+            : `Workspace plan overridden to "${tier.toUpperCase()}" tier!`
+        );
+        fetchLimitsAndMembers();
+        setTimeout(() => setSuperadminActionMsg(""), 4000);
+      } else {
+        setSuperadminActionMsg(data.error || "Superadmin action failed.");
+      }
+    } catch (err: any) {
+      setSuperadminActionMsg(err.message || "Failed action");
+    } finally {
+      setSuperadminActionLoading(false);
+    }
+  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,9 +183,9 @@ function SettingsPage() {
     }
   };
 
-  const planName = limitsData?.plan?.name || "Starter";
-  const userRole = limitsData?.role || "member";
   const isSuper = limitsData?.isSuperAdmin;
+  const planName = isSuper ? "Platform Master" : limitsData?.plan?.name || "Starter";
+  const userRole = isSuper ? "superadmin" : limitsData?.role || "member";
   const canInvite = isSuper || userRole === "owner" || userRole === "admin";
   const memberQuota = limitsData?.usage?.members;
   const botQuota = limitsData?.usage?.chatbots;
@@ -104,14 +197,14 @@ function SettingsPage() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Workspace & Settings</h1>
             {isSuper && (
-              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1 text-[11px]">
-                <Crown className="w-3 h-3" />
-                <span>Superadmin</span>
+              <Badge className="bg-amber-500/15 text-amber-600 border border-amber-500/30 gap-1 text-[11px] font-semibold">
+                <Crown className="w-3 h-3 text-amber-500" />
+                <span>NzoAI Superadmin</span>
               </Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Manage your organization, team members, invitations, and tier subscription.
+            Manage your organization profile, team members, invitations, and system quotas.
           </p>
         </div>
 
@@ -120,11 +213,39 @@ function SettingsPage() {
           <Badge variant="outline" className="text-xs px-2.5 py-1">
             Role: <span className="font-semibold capitalize ml-1">{userRole}</span>
           </Badge>
-          <Badge className="bg-[#800020] text-white text-xs px-2.5 py-1">
-            {planName} Tier
+          <Badge
+            className={`text-xs px-2.5 py-1 text-white ${
+              isSuper ? "bg-amber-600" : "bg-[#800020]"
+            }`}
+          >
+            {planName}
           </Badge>
         </div>
       </div>
+
+      {/* Superadmin Platform Master Banner */}
+      {isSuper && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm">You are logged in as NzoAI Platform Superadmin</p>
+              <p className="text-muted-foreground mt-0.5">
+                You have master authority to edit any organization, override tiers, adjust credit quotas, or manage the entire platform.
+              </p>
+            </div>
+          </div>
+          <Link to="/superadmin">
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5 shrink-0">
+              <SettingsIcon className="w-3.5 h-3.5" />
+              <span>Platform Backoffice</span>
+              <ExternalLink className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 border-b pb-2">
@@ -148,17 +269,17 @@ function SettingsPage() {
 
       {activeTab === "workspace" && (
         <div className="space-y-6">
-          {/* Tier Quota Overview Cards */}
+          {/* Quota Overview Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Team Seats Quota</p>
                   <p className="text-xl font-bold text-foreground mt-0.5">
-                    {memberQuota ? `${memberQuota.current} / ${memberQuota.max}` : "1 / 2"}
+                    {isSuper ? `${membersList.length || 1} / Unlimited` : memberQuota ? `${memberQuota.current} / ${memberQuota.max}` : "1 / 2"}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Allowed under <span className="font-semibold text-primary">{planName}</span> plan
+                    {isSuper ? "Exempt from seat limits" : `Allowed under ${planName} plan`}
                   </p>
                 </div>
                 <Users className="w-8 h-8 text-muted-foreground/30" />
@@ -170,10 +291,10 @@ function SettingsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Chatbots Quota</p>
                   <p className="text-xl font-bold text-foreground mt-0.5">
-                    {botQuota ? `${botQuota.current} / ${botQuota.max}` : "1 / 1"}
+                    {isSuper ? "1 / Unlimited" : botQuota ? `${botQuota.current} / ${botQuota.max}` : "1 / 1"}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Allowed under <span className="font-semibold text-primary">{planName}</span> plan
+                    {isSuper ? "Exempt from bot limits" : `Allowed under ${planName} plan`}
                   </p>
                 </div>
                 <Sparkles className="w-8 h-8 text-muted-foreground/30" />
@@ -181,25 +302,146 @@ function SettingsPage() {
             </Card>
           </div>
 
-          {/* Organization Details */}
+          {/* Superadmin Dynamic Overrides for this Workspace */}
+          {isSuper && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardHeader className="pb-3 border-b border-amber-500/20">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <Crown className="w-4 h-4" />
+                  <span>Superadmin Master Overrides for this Organization</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4 text-xs">
+                {superadminActionMsg && (
+                  <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{superadminActionMsg}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Plan Tier Override */}
+                  <div className="space-y-2">
+                    <label className="font-semibold text-foreground">Direct Plan Tier Assignment (No Payment Needed)</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedPlanTier}
+                        onChange={(e) => setSelectedPlanTier(e.target.value)}
+                        className="h-8 px-2 rounded-md border bg-background text-xs flex-1"
+                      >
+                        <option value="starter">Starter Plan (GH₵ 400 / mo)</option>
+                        <option value="growth">Growth Plan (GH₵ 1,100 / mo)</option>
+                        <option value="pro">Professional Plan (GH₵ 2,800 / mo)</option>
+                        <option value="enterprise">Enterprise Plan (Unlimited)</option>
+                      </select>
+                      <Button
+                        size="sm"
+                        disabled={superadminActionLoading}
+                        onClick={() => handleSuperadminOverride(selectedPlanTier)}
+                        className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        Apply Tier
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Instantly upgrades or downgrades this organization's active tier in the database.
+                    </p>
+                  </div>
+
+                  {/* Instant Credit Grant */}
+                  <div className="space-y-2">
+                    <label className="font-semibold text-foreground">Grant Message Credits</label>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-1"
+                        disabled={superadminActionLoading}
+                        onClick={() => handleSuperadminOverride(selectedPlanTier, 1000)}
+                      >
+                        +1,000 Credits
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-1"
+                        disabled={superadminActionLoading}
+                        onClick={() => handleSuperadminOverride(selectedPlanTier, 5000)}
+                      >
+                        +5,000 Credits
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-1"
+                        disabled={superadminActionLoading}
+                        onClick={() => handleSuperadminOverride(selectedPlanTier, 25000)}
+                      >
+                        +25,000 Credits
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Adds message credits directly to this workspace's account balance.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Organization Details Form */}
           <Card>
-            <CardHeader className="pb-3 border-b">
+            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-primary" />
                 <span>Organization Details</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Organization Name</label>
-                  <Input defaultValue="NzoAI Workspace" className="h-8 text-xs" />
+              {orgSuccess && (
+                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Organization settings saved successfully!</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-medium text-foreground">Workspace Slug</label>
-                  <Input defaultValue="nzoai-workspace" className="h-8 text-xs" readOnly />
+              )}
+
+              {orgError && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{orgError}</span>
                 </div>
-              </div>
+              )}
+
+              <form onSubmit={handleSaveOrganization} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Organization Name</label>
+                    <Input
+                      value={orgName}
+                      onChange={(e) => setOrgName(e.target.value)}
+                      placeholder="e.g. Acme Corporation"
+                      className="h-8 text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-medium text-foreground">Workspace Slug</label>
+                    <Input
+                      value={orgSlug}
+                      onChange={(e) => setOrgSlug(e.target.value)}
+                      placeholder="e.g. acme-corp"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" size="sm" className="h-8 text-xs gap-1.5" disabled={orgSaving}>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{orgSaving ? "Saving..." : "Save Organization"}</span>
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
 
@@ -212,7 +454,7 @@ function SettingsPage() {
               </CardTitle>
               {memberQuota && (
                 <span className="text-xs text-muted-foreground">
-                  Seats: <strong className="text-foreground">{memberQuota.current}</strong> / {memberQuota.max}
+                  Seats: <strong className="text-foreground">{isSuper ? membersList.length || 1 : memberQuota.current}</strong> / {isSuper ? "Unlimited" : memberQuota.max}
                 </span>
               )}
             </CardHeader>
@@ -285,14 +527,14 @@ function SettingsPage() {
                   <div className="p-3.5 flex items-center justify-between bg-card">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
-                        A
+                        P
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">Workspace Owner</p>
-                        <p className="text-muted-foreground text-[11px]">Account Owner & Billing Contact</p>
+                        <p className="font-semibold text-foreground">Platform Founder</p>
+                        <p className="text-muted-foreground text-[11px]">Account Owner & Superadmin</p>
                       </div>
                     </div>
-                    <Badge variant="secondary">Owner</Badge>
+                    <Badge variant="secondary">Superadmin</Badge>
                   </div>
                 )}
               </div>
@@ -328,83 +570,140 @@ function SettingsPage() {
 
       {activeTab === "billing" && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" />
-                <span>Subscription Plan & Quotas</span>
-              </CardTitle>
-              <Badge className="bg-emerald-600 text-white">Active</Badge>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {isSuper ? (
+            /* Superadmin Master Billing View */
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardHeader className="pb-3 border-b border-amber-500/20 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <Crown className="w-4 h-4" />
+                  <span>Platform Master Account</span>
+                </CardTitle>
+                <Badge className="bg-amber-600 text-white">Billing Exempt</Badge>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">{planName} Tier</h3>
+                  <h3 className="text-lg font-bold text-foreground">NzoAI Platform Master (God Mode)</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {limitsData?.plan?.monthlyCredits?.toLocaleString() || "1,000"} monthly message credits ·{" "}
-                    {limitsData?.plan?.allowWebsiteCrawl ? "Full recursive website crawl" : "Single-page scraper"} ·{" "}
-                    {limitsData?.plan?.allowCustomBranding ? "White-label custom branding" : "Standard branding"}
+                    As the platform owner, your superadmin account is exempt from payment gateways, monthly subscription fees, and quotas.
                   </p>
                 </div>
-                <Link to="/choose-plan">
-                  <Button size="sm" variant="outline" className="text-xs gap-1.5 shrink-0">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    <span>Upgrade Plan</span>
-                  </Button>
-                </Link>
-              </div>
 
-              {/* Quotas grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-medium text-foreground">Chatbots Limit</span>
-                    <span className="font-semibold text-primary">
-                      {botQuota ? `${botQuota.current} / ${botQuota.max}` : "1 / 1"}
-                    </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="p-4 rounded-xl border bg-background space-y-1">
+                    <span className="text-xs text-muted-foreground">Chatbots Limit</span>
+                    <p className="text-lg font-bold text-amber-600">Unlimited</p>
+                    <p className="text-[11px] text-muted-foreground">Create as many bots as required</p>
                   </div>
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{
-                        width: `${Math.min(100, ((botQuota?.current || 1) / (botQuota?.max || 1)) * 100)}%`,
-                      }}
-                    />
+                  <div className="p-4 rounded-xl border bg-background space-y-1">
+                    <span className="text-xs text-muted-foreground">Team Seats</span>
+                    <p className="text-lg font-bold text-amber-600">Unlimited</p>
+                    <p className="text-[11px] text-muted-foreground">Invite unlimited platform operators</p>
+                  </div>
+                  <div className="p-4 rounded-xl border bg-background space-y-1">
+                    <span className="text-xs text-muted-foreground">Monthly Message Credits</span>
+                    <p className="text-lg font-bold text-amber-600">Unlimited</p>
+                    <p className="text-[11px] text-muted-foreground">No credit deductions on master calls</p>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-medium text-foreground">Team Seats Limit</span>
-                    <span className="font-semibold text-primary">
-                      {memberQuota ? `${memberQuota.current} / ${memberQuota.max}` : "1 / 2"}
-                    </span>
+                <div className="pt-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">Platform Subscriptions Directory</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Inspect all customer subscriptions, active revenue, and payment health across organizations.
+                    </p>
                   </div>
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{
-                        width: `${Math.min(100, ((memberQuota?.current || 1) / (memberQuota?.max || 2)) * 100)}%`,
-                      }}
-                    />
-                  </div>
+                  <Link to="/superadmin">
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5">
+                      <span>Open Platform Backoffice</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Tenant Billing View */
+            <Card>
+              <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <span>Subscription Plan & Quotas</span>
+                </CardTitle>
+                <Badge className="bg-emerald-600 text-white">Active</Badge>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">{planName} Tier</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {limitsData?.plan?.monthlyCredits?.toLocaleString() || "1,000"} monthly message credits ·{" "}
+                      {limitsData?.plan?.allowWebsiteCrawl ? "Full recursive website crawl" : "Single-page scraper"} ·{" "}
+                      {limitsData?.plan?.allowCustomBranding ? "White-label custom branding" : "Standard branding"}
+                    </p>
+                  </div>
+                  <Link to="/choose-plan">
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5 shrink-0">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span>Upgrade Plan</span>
+                    </Button>
+                  </Link>
+                </div>
 
-              <div className="pt-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-medium text-foreground">Manage Billing on Polar</span>
-                  <p className="text-[11px] text-muted-foreground">View invoices, update card details, or cancel subscription</p>
+                {/* Quotas grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-medium text-foreground">Chatbots Limit</span>
+                      <span className="font-semibold text-primary">
+                        {botQuota ? `${botQuota.current} / ${botQuota.max}` : "1 / 1"}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary"
+                        style={{
+                          width: `${Math.min(100, ((botQuota?.current || 1) / (botQuota?.max || 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border bg-muted/20 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-medium text-foreground">Team Seats Limit</span>
+                      <span className="font-semibold text-primary">
+                        {memberQuota ? `${memberQuota.current} / ${memberQuota.max}` : "1 / 2"}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary"
+                        style={{
+                          width: `${Math.min(100, ((memberQuota?.current || 1) / (memberQuota?.max || 2)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <a href="https://polar.sh" target="_blank" rel="noreferrer">
-                  <Button size="sm" variant="outline" className="text-xs gap-1.5">
-                    <span>Polar Customer Portal</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
-                </a>
-              </div>
-            </CardContent>
-          </Card>
+
+                <div className="pt-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-medium text-foreground">Manage Subscription & Plans</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Upgrade tier, view invoices, or update Mobile Money & Card details via Paystack
+                    </p>
+                  </div>
+                  <a href="/choose-plan">
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5">
+                      <span>Manage Plans</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

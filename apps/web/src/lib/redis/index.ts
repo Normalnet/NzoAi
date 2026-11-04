@@ -11,19 +11,31 @@ export function getRedisClient(): Redis | null {
   }
 
   try {
+    const redisOptions = {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      lazyConnect: true,
+      retryStrategy: (times: number) => {
+        if (times > 2) return null; // Stop reconnecting after 2 attempts if Redis isn't running
+        return 1000;
+      },
+    };
+
     redisClient = url
-      ? new Redis(url, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
+      ? new Redis(url, redisOptions)
       : new Redis({
           host: process.env.REDIS_HOST || "localhost",
           port: Number(process.env.REDIS_PORT) || 6379,
           password: process.env.REDIS_PASSWORD || undefined,
           db: Number(process.env.REDIS_DB) || 0,
-          maxRetriesPerRequest: 1,
-          enableOfflineQueue: false,
+          ...redisOptions,
         });
 
     redisClient.on("error", (err) => {
-      console.warn("[redis] Redis connection warning:", err.message);
+      // Log once, suppress repetitive spam
+      if (err.message) {
+        console.warn("[redis] Redis connection warning:", err.message);
+      }
     });
 
     return redisClient;

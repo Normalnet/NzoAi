@@ -11,8 +11,8 @@ export async function checkSubscription(organizationId: string) {
   });
 
   if (!sub) {
-    // In dev mode allow if no polar credentials set
-    if (process.env.NODE_ENV === "development" && !process.env.POLAR_ACCESS_TOKEN) {
+    // In dev mode allow if no payment gateway credentials set
+    if (process.env.NODE_ENV === "development" && !process.env.PAYSTACK_SECRET_KEY) {
       return true;
     }
     return false;

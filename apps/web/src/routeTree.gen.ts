@@ -10,6 +10,7 @@ import { Route as OnboardingImport } from "./routes/onboarding/index";
 import { Route as ChoosePlanImport } from "./routes/choose-plan";
 import { Route as SuccessImport } from "./routes/success";
 import { Route as SuperadminImport } from "./routes/superadmin";
+import { Route as SuperadminLoginImport } from "./routes/(auth)/superadmin-login";
 import { Route as BubbleWidgetIdImport } from "./routes/bubble/$widgetId";
 import { Route as TalkPageIdImport } from "./routes/talk/$pageId";
 
@@ -118,6 +119,12 @@ const SuperadminRoute = SuperadminImport.update({
   getParentRoute: () => rootRoute,
 } as any);
 
+const SuperadminLoginRoute = SuperadminLoginImport.update({
+  id: "/superadmin-login",
+  path: "/superadmin-login",
+  getParentRoute: () => rootRoute,
+} as any);
+
 // Admin Routes
 const AdminRoute = AdminRouteImport.update({
   id: "/admin",
@@ -174,7 +181,7 @@ const AdminSettingsRoute = AdminSettingsImport.update({
 } as any);
 
 const AdminSuperadminRoute = AdminSuperadminImport.update({
-  id: "/superadmin",
+  id: "/admin-superadmin",
   path: "/superadmin",
   getParentRoute: () => AdminRoute,
 } as any);
@@ -195,6 +202,7 @@ export const routeTree = rootRoute._addFileChildren({
   IndexRoute,
   LoginRoute,
   RegisterRoute,
+  SuperadminLoginRoute,
   OnboardingRoute,
   ChoosePlanRoute,
   SuccessRoute,

@@ -118,7 +118,7 @@ export const ServerRoute = createServerFileRoute("/api/invite-member").methods({
       if (process.env.RESEND_API_KEY) {
         try {
           const resend = new Resend(process.env.RESEND_API_KEY);
-          const inviteUrl = `${process.env.BETTER_AUTH_URL || "http://localhost:3001"}/api/accept-invitation/${inviteId}`;
+          const inviteUrl = `${process.env.BETTER_AUTH_URL || "http://localhost:3001"}/invite/${inviteId}`;
           await resend.emails.send({
             from: "invites@nzoai.com",
             to: email,

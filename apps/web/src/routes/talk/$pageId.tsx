@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChatPreview, type ChatbotConfig } from "../../components/chat/chat-preview";
 import { useChatWebSocket } from "../../hooks/use-chat-websocket";
+import { Provider as ChatStoreProvider } from "@nzoai/store";
 import { v4 as uuidv4 } from "uuid";
 
 export const Route = createFileRoute("/talk/$pageId")({
@@ -72,6 +73,7 @@ function TalkPage() {
       const decoder = new TextDecoder();
       let assistantText = "";
       const assistantId = uuidv4();
+      const toolInvocations: any[] = [];
 
       if (reader) {
         while (true) {
@@ -85,11 +87,49 @@ function TalkPage() {
                 const textPart = JSON.parse(line.slice(2));
                 assistantText += textPart;
               } catch (e) {}
+            } else if (line.startsWith("9:")) {
+              try {
+                const toolPart = JSON.parse(line.slice(2));
+                toolInvocations.push({
+                  state: "call",
+                  toolCallId: toolPart.toolCallId,
+                  toolName: toolPart.toolName,
+                  args: toolPart.args,
+                });
+              } catch (e) {}
+            } else if (line.startsWith("a:")) {
+              try {
+                const resultPart = JSON.parse(line.slice(2));
+                const found = toolInvocations.find((t) => t.toolCallId === resultPart.toolCallId);
+                if (found) {
+                  found.state = "result";
+                  found.result = resultPart.result;
+                } else {
+                  toolInvocations.push({
+                    state: "result",
+                    toolCallId: resultPart.toolCallId,
+                    result: resultPart.result,
+                  });
+                }
+              } catch (e) {}
             }
           }
+
+          const parts: any[] = [];
+          if (assistantText) {
+            parts.push({ type: "text", text: assistantText });
+          }
+          for (const inv of toolInvocations) {
+            parts.push({
+              type: `tool-${inv.toolName || "action"}`,
+              toolInvocation: inv,
+              result: inv.result,
+            });
+          }
+
           setMessages([
             ...newMessages,
-            { id: assistantId, role: "assistant", content: assistantText },
+            { id: assistantId, role: "assistant", content: assistantText, parts },
           ]);
         }
       }
@@ -117,15 +157,17 @@ function TalkPage() {
   return (
     <div className="min-h-screen bg-muted/20 flex flex-col items-center justify-center p-4 font-sans">
       <div className="w-full max-w-xl h-[700px]">
-        <ChatPreview
-          chatbot={{ ...botConfig, embedToken: pageId }}
-          messages={messages}
-          status={status}
-          chatStatus={chatStatus}
-          isTyping={isTyping}
-          onSendMessage={handleSendMessage}
-          onReset={handleReset}
-        />
+        <ChatStoreProvider initialMessages={messages} initialId={chatId}>
+          <ChatPreview
+            chatbot={{ ...botConfig, embedToken: pageId }}
+            messages={messages}
+            status={status}
+            chatStatus={chatStatus}
+            isTyping={isTyping}
+            onSendMessage={handleSendMessage}
+            onReset={handleReset}
+          />
+        </ChatStoreProvider>
       </div>
     </div>
   );

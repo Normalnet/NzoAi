@@ -116,7 +116,7 @@ export const ServerRoute = createServerFileRoute("/api/train-agent").methods({
           }
         }
 
-        // 6. Process Document Sources
+        // 6. Process Document Sources (Option 2: Direct PostgreSQL Ingestion)
         const documentSourcesList = await db.query.documentSource.findMany({
           where: eq(documentSource.chatbotId, activeBotId),
         });
@@ -124,10 +124,26 @@ export const ServerRoute = createServerFileRoute("/api/train-agent").methods({
 
         for (const ds of documentSourcesList) {
           try {
-            const fileRes = await fetch(ds.url);
-            if (fileRes.ok) {
-              const arrayBuf = await fileRes.arrayBuffer();
-              const text = await extractTextFromDocument(Buffer.from(arrayBuf), ds.type, ds.name);
+            let text = ds.content || "";
+            // Fallback for legacy documents without pre-extracted text
+            if (!text) {
+              if (ds.url && ds.url.startsWith("data:")) {
+                const match = ds.url.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                  const mimeType = match[1];
+                  const buffer = Buffer.from(match[2], "base64");
+                  text = await extractTextFromDocument(buffer, mimeType, ds.name);
+                }
+              } else if (ds.url && (ds.url.startsWith("http://") || ds.url.startsWith("https://"))) {
+                const fileRes = await fetch(ds.url);
+                if (fileRes.ok) {
+                  const arrayBuf = await fileRes.arrayBuffer();
+                  text = await extractTextFromDocument(Buffer.from(arrayBuf), ds.type, ds.name);
+                }
+              }
+            }
+
+            if (text && text.trim().length > 0) {
               const chunks = chunkDocument(text, 500, 20);
               if (chunks.length > 0) {
                 const embeddings = await generateBatchEmbeddings(chunks);

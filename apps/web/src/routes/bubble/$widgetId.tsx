@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChatPreview, type ChatbotConfig } from "../../components/chat/chat-preview";
 import { useChatWebSocket } from "../../hooks/use-chat-websocket";
+import { Provider as ChatStoreProvider } from "@nzoai/store";
 import { v4 as uuidv4 } from "uuid";
 
 export const Route = createFileRoute("/bubble/$widgetId")({
@@ -85,6 +86,7 @@ function BubbleWidgetPage() {
       const decoder = new TextDecoder();
       let assistantText = "";
       const assistantId = uuidv4();
+      const toolInvocations: any[] = [];
 
       if (reader) {
         while (true) {
@@ -98,11 +100,49 @@ function BubbleWidgetPage() {
                 const textPart = JSON.parse(line.slice(2));
                 assistantText += textPart;
               } catch (e) {}
+            } else if (line.startsWith("9:")) {
+              try {
+                const toolPart = JSON.parse(line.slice(2));
+                toolInvocations.push({
+                  state: "call",
+                  toolCallId: toolPart.toolCallId,
+                  toolName: toolPart.toolName,
+                  args: toolPart.args,
+                });
+              } catch (e) {}
+            } else if (line.startsWith("a:")) {
+              try {
+                const resultPart = JSON.parse(line.slice(2));
+                const found = toolInvocations.find((t) => t.toolCallId === resultPart.toolCallId);
+                if (found) {
+                  found.state = "result";
+                  found.result = resultPart.result;
+                } else {
+                  toolInvocations.push({
+                    state: "result",
+                    toolCallId: resultPart.toolCallId,
+                    result: resultPart.result,
+                  });
+                }
+              } catch (e) {}
             }
           }
+
+          const parts: any[] = [];
+          if (assistantText) {
+            parts.push({ type: "text", text: assistantText });
+          }
+          for (const inv of toolInvocations) {
+            parts.push({
+              type: `tool-${inv.toolName || "action"}`,
+              toolInvocation: inv,
+              result: inv.result,
+            });
+          }
+
           setMessages([
             ...newMessages,
-            { id: assistantId, role: "assistant", content: assistantText },
+            { id: assistantId, role: "assistant", content: assistantText, parts },
           ]);
         }
       }
@@ -133,16 +173,18 @@ function BubbleWidgetPage() {
 
   return (
     <div className="h-screen w-screen overflow-hidden p-0 bg-background font-sans">
-      <ChatPreview
-        chatbot={{ ...botConfig, embedToken: widgetId }}
-        messages={messages}
-        status={status}
-        chatStatus={chatStatus}
-        isTyping={isTyping}
-        onSendMessage={handleSendMessage}
-        onClose={handleClose}
-        onReset={handleReset}
-      />
+      <ChatStoreProvider initialMessages={messages} initialId={chatId}>
+        <ChatPreview
+          chatbot={{ ...botConfig, embedToken: widgetId }}
+          messages={messages}
+          status={status}
+          chatStatus={chatStatus}
+          isTyping={isTyping}
+          onSendMessage={handleSendMessage}
+          onClose={handleClose}
+          onReset={handleReset}
+        />
+      </ChatStoreProvider>
     </div>
   );
 }

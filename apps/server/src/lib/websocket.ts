@@ -13,9 +13,11 @@ interface ClientMeta {
 
 const clientMetadata = new WeakMap<WebSocket, ClientMeta>();
 const rooms = new Map<string, Set<WebSocket>>();
+let wssInstance: WebSocketServer | null = null;
 
 export function setupWebSocket(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
+  wssInstance = wss;
 
   const heartbeat = setInterval(() => {
     wss.clients.forEach((ws) => {
@@ -228,4 +230,25 @@ async function handleLeave(ws: WebSocket, chatId?: string) {
 
 async function handleDisconnect(ws: WebSocket) {
   await handleLeave(ws);
+}
+
+export function broadcastEscalationAlert(chatId: string, alertData: any) {
+  if (!wssInstance) return;
+  const payload = JSON.stringify({
+    type: "escalation_alert",
+    chatId,
+    timestamp: new Date().toISOString(),
+    ...alertData,
+  });
+
+  // Broadcast to specific room
+  broadcastToRoom(chatId, { type: "escalation_alert", chatId, ...alertData });
+
+  // Broadcast to all connected human support agents
+  wssInstance.clients.forEach((client) => {
+    const meta = clientMetadata.get(client);
+    if (meta?.role === "agent" && client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  });
 }

@@ -51,6 +51,15 @@ export const TIER_CONFIGS: Record<PlanTier, TierConfig> = {
     allowCustomBranding: true,
     monthlyCredits: 1000000,
   },
+  master: {
+    id: "enterprise",
+    name: "Platform Master (Unlimited)",
+    maxChatbots: 999999,
+    maxMembers: 999999,
+    allowWebsiteCrawl: true,
+    allowCustomBranding: true,
+    monthlyCredits: 999999999,
+  },
 };
 
 /**
@@ -65,8 +74,8 @@ export async function getOrganizationPlan(organizationId: string): Promise<TierC
   });
 
   if (!sub) {
-    // In local development allow Growth plan as fallback
-    if (process.env.NODE_ENV === "development" && !process.env.POLAR_ACCESS_TOKEN) {
+    // In local development allow Growth plan as fallback if no Paystack key configured
+    if (process.env.NODE_ENV === "development" && !process.env.PAYSTACK_SECRET_KEY) {
       return TIER_CONFIGS.growth;
     }
     return TIER_CONFIGS.starter;
@@ -83,6 +92,9 @@ export async function getOrganizationPlan(organizationId: string): Promise<TierC
 
   // Match tier from productId or meters
   const prodId = (sub.productId || "").toLowerCase();
+  if (prodId.includes("master") || prodId.includes("founder")) {
+    return TIER_CONFIGS.master;
+  }
   if (prodId.includes("pro") || prodId.includes("professional")) {
     return TIER_CONFIGS.pro;
   }
@@ -180,6 +192,22 @@ export async function checkFeatureAccess(
   feature: "crawl" | "branding"
 ): Promise<{ allowed: boolean; tier: TierConfig; error?: string }> {
   const tier = await getOrganizationPlan(organizationId);
+
+  // Check dynamic superadmin feature overrides in organization metadata
+  try {
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, organizationId),
+    });
+    if (org?.metadata) {
+      const meta = typeof org.metadata === "string" ? JSON.parse(org.metadata) : org.metadata;
+      if (feature === "crawl" && meta.features?.allowWebsiteCrawl === true) {
+        return { allowed: true, tier };
+      }
+      if (feature === "branding" && meta.features?.allowCustomBranding === true) {
+        return { allowed: true, tier };
+      }
+    }
+  } catch (err) {}
 
   if (feature === "crawl" && !tier.allowWebsiteCrawl) {
     return {
