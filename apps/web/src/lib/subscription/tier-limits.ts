@@ -2,7 +2,7 @@ import { eq, count } from "drizzle-orm";
 import { db } from "../../db";
 import { subscription, chatbot, member, organization } from "../../db/schema";
 
-export type PlanTier = "starter" | "growth" | "pro" | "enterprise";
+export type PlanTier = "starter" | "growth" | "pro" | "enterprise" | "master";
 
 export interface TierConfig {
   id: PlanTier;

@@ -1,8 +1,12 @@
 export type ChatErrorCode =
   | "unauthorized:chat"
   | "unauthorized:session"
+  | "unauthorized:organization"
   | "forbidden:subscription"
   | "forbidden:tokens"
+  | "forbidden:superadmin"
+  | "forbidden:insufficient_role"
+  | "forbidden:membership"
   | "not_found:chatbot"
   | "not_found:chat"
   | "rate_limit:chat"

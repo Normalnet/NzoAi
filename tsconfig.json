@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
@@ -14,5 +15,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["api/**/*", "apps/web/src/**/*", "apps/web/auth.ts"]
+  "include": ["api/**/*", "apps/web/src/dev-api-dispatcher.ts", "apps/web/auth.ts"]
 }
