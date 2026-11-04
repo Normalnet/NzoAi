@@ -31,7 +31,9 @@ export const auth = betterAuth({
       invitation: schema.invitation,
     },
   }),
-  secret: process.env.BETTER_AUTH_SECRET || "default_super_secret_key_32_characters_minimum_12345",
+  secret:
+    process.env.BETTER_AUTH_SECRET ||
+    "a_very_secret_key_minimum_32_characters_long_12345",
   baseURL:
     process.env.BETTER_AUTH_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3001"),
