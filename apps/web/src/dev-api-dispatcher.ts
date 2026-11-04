@@ -4,15 +4,43 @@ export async function handleDevApiRequest(
   req: IncomingMessage,
   res: ServerResponse
 ): Promise<boolean> {
-  const urlString = req.url || "/";
+  let urlString = req.url || "/";
   if (!urlString.startsWith("/api")) {
     return false;
   }
 
-  const host = req.headers.host || "localhost:3001";
-  const urlObj = new URL(urlString, `http://${host}`);
-  const pathname = urlObj.pathname;
   const method = (req.method || "GET").toUpperCase();
+
+  // 0. Handle CORS preflight
+  if (method === "OPTIONS") {
+    const origin = (req.headers.origin as string) || "*";
+    res.statusCode = 204;
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-requested-with");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.end();
+    return true;
+  }
+
+  const proto =
+    (req.headers["x-forwarded-proto"] as string) ||
+    (req.headers.referer?.startsWith("https") ? "https" : "http");
+  const host =
+    (req.headers["x-forwarded-host"] as string) ||
+    req.headers.host ||
+    "localhost:3001";
+  const urlObj = new URL(urlString, `${proto}://${host}`);
+  let pathname = urlObj.pathname;
+
+  // Support Vercel catch-all query parameters if rewritten
+  if ((pathname === "/api" || pathname === "/api/") && (req as any).query?.path) {
+    const segments = Array.isArray((req as any).query.path)
+      ? (req as any).query.path
+      : [(req as any).query.path];
+    pathname = `/api/${segments.join("/")}`;
+    urlObj.pathname = pathname;
+  }
 
   // Read request body for non-GET/HEAD methods
   let bodyBuffer: Buffer | undefined = undefined;
@@ -40,7 +68,7 @@ export async function handleDevApiRequest(
   const webRequest = new Request(urlObj.href, {
     method,
     headers,
-    body: bodyBuffer,
+    body: bodyBuffer as any,
   });
 
   try {
@@ -159,6 +187,11 @@ export async function handleDevApiRequest(
         res.setHeader(key, val);
       }
     });
+
+    if (req.headers.origin && !res.getHeader("access-control-allow-origin")) {
+      res.setHeader("Access-Control-Allow-Origin", req.headers.origin as string);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
 
     if (response.body) {
       const reader = response.body.getReader();

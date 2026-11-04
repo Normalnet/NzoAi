@@ -32,7 +32,20 @@ export const auth = betterAuth({
     },
   }),
   secret: process.env.BETTER_AUTH_SECRET || "default_super_secret_key_32_characters_minimum_12345",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001",
+  baseURL:
+    process.env.BETTER_AUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3001"),
+  trustedOrigins: [
+    "http://localhost:3001",
+    "http://localhost:3000",
+    "http://localhost:*",
+    "https://nzoai.vercel.app",
+    "https://*.vercel.app",
+    ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
+  ],
+  advanced: {
+    trustedProxyHeaders: true,
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -69,7 +82,7 @@ export const auth = betterAuth({
           .set({ chatbotCount: 1 })
           .where(eq(schema.organization.id, organization.id));
       },
-    }),
+    } as any),
   ],
   databaseHooks: {
     session: {

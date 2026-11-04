@@ -16,5 +16,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "auth.ts", "drizzle.config.ts"]
+  "include": ["src/**/*", "auth.ts", "drizzle.config.ts", "api/**/*"]
 }

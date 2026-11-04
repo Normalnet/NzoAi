@@ -77,10 +77,6 @@ function ChatHistoryPage() {
       });
   }, [selectedChat?.id]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isTyping]);
-
   // WebSocket connection for real-time escalation reply
   const isEscalated = selectedChat?.status === "escalated";
   const { isConnected, isTyping, sendMessage: sendWsMessage, sendTyping } = useChatWebSocket({
@@ -96,6 +92,10 @@ function ChatHistoryPage() {
       }
     },
   });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isTyping]);
 
   const handleUpdateStatus = async (status: string) => {
     if (!selectedChat?.id) return;

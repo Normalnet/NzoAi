@@ -38,6 +38,12 @@
       }
     },
     {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "service": "web"
