@@ -3,7 +3,7 @@ import { streamText, convertToCoreMessages } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "../../../../db";
 import { chatbot, chat } from "../../../../db/schema";
-import { CHAT_MODEL } from "../../../../lib/ai/providers";
+import { CHAT_MODEL, getChatModel } from "../../../../lib/ai/providers";
 import { systemPrompt } from "../../../../lib/ai/prompts/system-prompt";
 import { getActiveActionsForChatbot } from "../../../../lib/ai/get-active-tools";
 import { buildActiveTools } from "../../../../lib/ai/build-active-tools";
@@ -149,7 +149,7 @@ export const ServerRoute = createServerFileRoute("/api/embed/chat/$platformIdent
       const tools = buildActiveTools(chatId, bot.id, actionsMap);
 
       const result = streamText({
-        model: CHAT_MODEL,
+        model: getChatModel((bot as any).model || "gpt-4o-mini"),
         system: prompt,
         messages: convertToCoreMessages(messages),
         tools,

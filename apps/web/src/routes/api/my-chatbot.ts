@@ -44,6 +44,7 @@ export const ServerRoute = createServerFileRoute("/api/my-chatbot").methods({
           embedToken: "embed_demo",
           sourcesCount: 0,
           isEmbeddingEnabled: true,
+          model: "gpt-4o-mini",
           trainingStatus: "idle",
         };
       }
@@ -75,6 +76,7 @@ export const ServerRoute = createServerFileRoute("/api/my-chatbot").methods({
         "hidePoweredBy",
         "isEmbeddingEnabled",
         "allowedDomains",
+        "model",
       ];
 
       const updateData: Record<string, any> = { updatedAt: new Date() };

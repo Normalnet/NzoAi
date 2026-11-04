@@ -1,11 +1,12 @@
 import { createServerFileRoute } from "@/lib/server-route";
-import { getActivePlatformModels } from "../../lib/ai/models";
+import { fetchPlatformModelsFromDB } from "../../lib/ai/models";
 
 export const ServerRoute = createServerFileRoute("/api/models").methods({
   GET: async () => {
     try {
-      const models = getActivePlatformModels();
-      return new Response(JSON.stringify({ models }), {
+      const allModels = await fetchPlatformModelsFromDB();
+      const activeModels = allModels.filter((m) => m.isActive);
+      return new Response(JSON.stringify({ models: activeModels }), {
         headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {

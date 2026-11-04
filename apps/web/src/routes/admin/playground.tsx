@@ -58,6 +58,9 @@ function PlaygroundPage() {
       .then((data) => {
         if (data?.chatbot) {
           setChatbot(data.chatbot);
+          if (data.chatbot.model) {
+            setSelectedModel(data.chatbot.model);
+          }
           setFormData({
             name: data.chatbot.name || "",
             primaryColor: data.chatbot.primaryColor || "#800020",
@@ -138,7 +141,7 @@ function PlaygroundPage() {
       const res = await fetch("/api/my-chatbot", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, model: selectedModel }),
       });
 
       if (res.ok) {
