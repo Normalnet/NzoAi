@@ -74,6 +74,43 @@ async function seed() {
     console.log(`[seed] Updated credentials password for ${founderEmail}`);
   }
 
+  // 1c. Seed Tenant User (normalnet001@gmail.com)
+  const tenantEmail = "normalnet001@gmail.com";
+  let existingTenantUser = await db.query.user.findFirst({
+    where: eq(user.email, tenantEmail),
+  });
+
+  if (existingTenantUser) {
+    const existingTenantAccount = await db.query.account.findFirst({
+      where: and(
+        eq(account.userId, existingTenantUser.id),
+        eq(account.providerId, "credential")
+      ),
+    });
+
+    if (existingTenantAccount) {
+      await db
+        .update(account)
+        .set({
+          password: hashedPassword,
+          updatedAt: new Date(),
+        })
+        .where(eq(account.id, existingTenantAccount.id));
+      console.log(`[seed] Updated tenant password to default for ${tenantEmail}`);
+    } else {
+      await db.insert(account).values({
+        id: uuidv4(),
+        accountId: existingTenantUser.id,
+        providerId: "credential",
+        userId: existingTenantUser.id,
+        password: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log(`[seed] Created credentials account for tenant: ${tenantEmail}`);
+    }
+  }
+
   // 2. Seed Organization
   const existingOrg = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),

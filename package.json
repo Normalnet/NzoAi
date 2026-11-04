@@ -16,8 +16,12 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.16",
     "@neon/config": "^1.10.1",
     "@neon/env": "^1.6.9",
-    "@neon/realtime": "^0.1.2"
+    "@neon/realtime": "^0.1.2",
+    "better-auth": "^1.1.21",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.39.3"
   }
 }

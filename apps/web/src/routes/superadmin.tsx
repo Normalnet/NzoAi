@@ -585,6 +585,50 @@ function SuperadminPortalPage() {
     );
   });
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <RefreshCw className="w-8 h-8 animate-spin text-amber-500" />
+        <p className="text-sm font-medium">Verifying superadmin authorization...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-4 shadow-xl">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Superadmin Access Required</h2>
+          <p className="text-sm text-slate-400">
+            {error || "You must be signed in with global superadmin privileges to view this portal."}
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <Button
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold"
+              onClick={() => {
+                window.location.href = "/superadmin-login";
+              }}
+            >
+              Sign In as Superadmin
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-slate-400 hover:text-white"
+              onClick={() => {
+                window.location.href = "/";
+              }}
+            >
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-slate-100 selection:bg-amber-500 selection:text-slate-900 flex flex-col">
       {/* Top Master Header */}
