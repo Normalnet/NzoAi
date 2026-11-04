@@ -38,6 +38,11 @@ function devApiPlugin(): Plugin {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@nzoai/store": path.resolve(__dirname, "../../packages/store/src/index.ts"),
+    },
+  },
   plugins: [
     tsconfigPaths(),
     tailwindcss(),
