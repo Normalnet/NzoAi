@@ -155,6 +155,7 @@ export const chatbot = pgTable("chatbot", {
   isEmbeddingEnabled: boolean("is_embedding_enabled").default(true).notNull(),
   embedToken: text("embed_token").notNull().unique(), // e.g. embed_xxxx
   allowedDomains: jsonb("allowed_domains").$type<string[]>().default([]).notNull(),
+  model: text("model").default("gpt-4o-mini").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -423,4 +424,26 @@ export const creditsUsage = pgTable("credits_usage", {
   date: text("date").notNull(),
   resetAt: timestamp("reset_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/* ==========================================================================
+   AI MODEL CATALOG (Superadmin dynamic stack)
+   ========================================================================== */
+
+export const aiModel = pgTable("ai_model", {
+  id: text("id").primaryKey(), // Technical model id, e.g. "gpt-4o-mini", "gemini-2.0-flash"
+  displayName: text("display_name").notNull(), // White-label name, e.g. "NzoOpen Mini Fast"
+  provider: text("provider").notNull(), // 'openai' | 'google' | 'anthropic' | 'groq' | 'mistral' | 'custom'
+  description: text("description").notNull(),
+  badge: text("badge"), // e.g. "Ultra Fast", "Deep Reasoning", "Popular"
+  category: text("category").default("standard").notNull(), // 'fast' | 'reasoning' | 'balanced' | 'pro'
+  apiKey: text("api_key"), // Optional custom API key override
+  apiEndpoint: text("api_endpoint"), // Optional custom baseUrl endpoint
+  temperature: integer("temperature").default(70).notNull(), // 0 to 100
+  tierRequired: text("tier_required").default("all").notNull(), // 'all' | 'growth' | 'pro' | 'enterprise'
+  isActive: boolean("is_active").default(true).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  orderIndex: integer("order_index").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
