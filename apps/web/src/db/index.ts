@@ -16,16 +16,35 @@ dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const { Pool } = pg;
 
-const connectionString =
+const rawConnectionString =
   process.env.DATABASE_URL ||
   process.env.DATABASE_URL_UNPOOLED ||
   "postgres://postgres:postgres@localhost:5432/nzoai";
 
-const isNeon = connectionString.includes("neon.tech");
+const isNeon = rawConnectionString.includes("neon.tech");
+
+// Strip channel_binding=require and sslmode=require from URL when using explicit ssl config
+// so pg-connection-string does not override rejectUnauthorized or stall on PgBouncer poolers
+const connectionString = isNeon
+  ? rawConnectionString
+      .replace(/[?&]channel_binding=[^&]+/g, "")
+      .replace(/[?&]sslmode=[^&]+/g, "")
+      .replace(/\?&/, "?")
+      .replace(/\?$/, "")
+  : rawConnectionString;
 
 export const pool = new Pool({
   connectionString,
   ssl: isNeon ? { rejectUnauthorized: false } : undefined,
+  max: 15,
+  idleTimeoutMillis: 20000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+});
+
+pool.on("error", (err) => {
+  console.warn("[db pool] Idle client connection reset (will reconnect automatically):", err.message);
 });
 
 export const db = drizzle(pool, { schema });

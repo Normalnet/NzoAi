@@ -5,6 +5,7 @@ import { session, member, chatbot, user } from "../../../../db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { nanoid } from "nanoid";
+import crypto from "node:crypto";
 
 export const ServerRoute = createServerFileRoute("/api/superadmin/user/impersonate").methods({
   POST: async ({ request }) => {
@@ -72,10 +73,20 @@ export const ServerRoute = createServerFileRoute("/api/superadmin/user/impersona
         { headers: { "Content-Type": "application/json" } }
       );
 
+      // Sign session token with HMAC-SHA256 matching Better Auth's signed cookie format
+      const secret =
+        process.env.BETTER_AUTH_SECRET ||
+        "a_very_secret_key_minimum_32_characters_long_12345";
+      const signature = crypto
+        .createHmac("sha256", secret)
+        .update(sessionToken)
+        .digest("base64");
+      const signedCookieValue = encodeURIComponent(`${sessionToken}.${signature}`);
+
       // Set session cookie for seamless takeover
       response.headers.append(
         "Set-Cookie",
-        `better-auth.session_token=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
+        `better-auth.session_token=${signedCookieValue}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
       );
 
       return response;

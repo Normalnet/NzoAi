@@ -51,6 +51,14 @@ export const Route = createFileRoute("/superadmin")({
 // Quick autocomplete presets for popular foundation models
 const MODEL_PRESETS = [
   {
+    id: "gpt-6-luna",
+    displayName: "NzoOpen 6 Luna",
+    provider: "openai",
+    category: "reasoning",
+    badge: "Latest Default",
+    description: "Next-gen OpenAI GPT-6 Luna intelligence with native tool reasoning, ultra-fast synthesis, and low token cost.",
+  },
+  {
     id: "gemini-2.0-flash",
     displayName: "NzoGem 3 Cool",
     provider: "google",
@@ -197,10 +205,9 @@ function SuperadminPortalPage() {
     setLoading(true);
     setError(null);
     try {
-      const [overviewRes, statusRes, modelsRes] = await Promise.all([
-        fetch("/api/superadmin/overview", { headers: { Accept: "application/json" } }),
-        fetch("/api/system-status", { headers: { Accept: "application/json" } }),
-        fetch("/api/superadmin/models", { headers: { Accept: "application/json" } }),
+      const [overviewRes, modelsRes] = await Promise.all([
+        fetch("/api/superadmin/overview", { headers: { Accept: "application/json" }, credentials: "include" }),
+        fetch("/api/superadmin/models", { headers: { Accept: "application/json" }, credentials: "include" }),
       ]);
 
       if (!overviewRes.ok) {
@@ -215,17 +222,20 @@ function SuperadminPortalPage() {
         setData(overviewData);
       }
 
-      if (statusRes.ok) {
-        const sData = await statusRes.json();
-        setSystemStatus(sData);
-      }
-
       if (modelsRes.ok) {
         const mData = await modelsRes.json();
         if (Array.isArray(mData?.models)) {
           setModelsList(mData.models);
         }
       }
+
+      // Fetch system status asynchronously without blocking main backoffice UI
+      fetch("/api/system-status", { headers: { Accept: "application/json" } })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((sData) => {
+          if (sData) setSystemStatus(sData);
+        })
+        .catch(() => {});
     } catch (err: any) {
       setError(err.message || "Failed to load superadmin overview");
     } finally {

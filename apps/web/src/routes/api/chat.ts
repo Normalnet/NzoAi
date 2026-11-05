@@ -85,7 +85,7 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
       const tools = buildActiveTools(chatId, activeBotId, actionsMap);
 
       const result = streamText({
-        model: getChatModel(requestedModel || (bot as any).model || "gpt-4o-mini"),
+        model: getChatModel(requestedModel || (bot as any).model || "gpt-6-luna"),
         system: prompt,
         messages: convertToCoreMessages(messages),
         tools,

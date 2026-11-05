@@ -20,12 +20,12 @@ export interface AIModelDefinition {
 
 export const DEFAULT_AI_MODELS: AIModelDefinition[] = [
   {
-    id: "gpt-4o-mini",
-    displayName: "NzoOpen Mini Fast",
+    id: "gpt-6-luna",
+    displayName: "NzoOpen 6 Luna",
     provider: "openai",
-    description: "Ultra-fast response latency with high precision for conversational support.",
-    badge: "Fast & Light",
-    category: "fast",
+    description: "Next-gen OpenAI GPT-6 Luna intelligence with native tool reasoning, ultra-fast synthesis, and low token cost.",
+    badge: "Latest Default",
+    category: "reasoning",
     isActive: true,
     isDefault: true,
     orderIndex: 1,
@@ -73,6 +73,17 @@ export const DEFAULT_AI_MODELS: AIModelDefinition[] = [
     isActive: true,
     isDefault: false,
     orderIndex: 5,
+  },
+  {
+    id: "gpt-4o-mini",
+    displayName: "NzoOpen Mini Fast",
+    provider: "openai",
+    description: "Lightweight conversational support model for simple FAQ deflection.",
+    badge: "Legacy Light",
+    category: "fast",
+    isActive: true,
+    isDefault: false,
+    orderIndex: 6,
   },
 ];
 

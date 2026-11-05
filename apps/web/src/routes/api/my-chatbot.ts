@@ -44,7 +44,7 @@ export const ServerRoute = createServerFileRoute("/api/my-chatbot").methods({
           embedToken: "embed_demo",
           sourcesCount: 0,
           isEmbeddingEnabled: true,
-          model: "gpt-4o-mini",
+          model: "gpt-6-luna",
           trainingStatus: "idle",
         };
       }

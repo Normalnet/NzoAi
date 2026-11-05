@@ -155,7 +155,7 @@ export const chatbot = pgTable("chatbot", {
   isEmbeddingEnabled: boolean("is_embedding_enabled").default(true).notNull(),
   embedToken: text("embed_token").notNull().unique(), // e.g. embed_xxxx
   allowedDomains: jsonb("allowed_domains").$type<string[]>().default([]).notNull(),
-  model: text("model").default("gpt-4o-mini").notNull(),
+  model: text("model").default("gpt-6-luna").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

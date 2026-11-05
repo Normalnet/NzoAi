@@ -76,6 +76,7 @@ async function seed() {
 
   // 1c. Seed Tenant User (normalnet001@gmail.com)
   const tenantEmail = "normalnet001@gmail.com";
+  const tenantPasswordHash = await hashPassword("smart123456");
   let existingTenantUser = await db.query.user.findFirst({
     where: eq(user.email, tenantEmail),
   });
@@ -92,18 +93,18 @@ async function seed() {
       await db
         .update(account)
         .set({
-          password: hashedPassword,
+          password: tenantPasswordHash,
           updatedAt: new Date(),
         })
         .where(eq(account.id, existingTenantAccount.id));
-      console.log(`[seed] Updated tenant password to default for ${tenantEmail}`);
+      console.log(`[seed] Updated tenant password to smart123456 for ${tenantEmail}`);
     } else {
       await db.insert(account).values({
         id: uuidv4(),
         accountId: existingTenantUser.id,
         providerId: "credential",
         userId: existingTenantUser.id,
-        password: hashedPassword,
+        password: tenantPasswordHash,
         createdAt: new Date(),
         updatedAt: new Date(),
       });

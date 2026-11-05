@@ -12,6 +12,7 @@ dist/
 docs/
 test-harness/
 test-bubble.html
+nzoai-interactive-tutorial.html
 scratch/
 .neon
 .agents/

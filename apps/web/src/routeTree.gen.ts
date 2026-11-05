@@ -26,44 +26,6 @@ import { Route as AdminAnalyticsImport } from "./routes/admin/analytics";
 import { Route as AdminSettingsImport } from "./routes/admin/settings";
 import { Route as AdminSuperadminImport } from "./routes/admin/superadmin";
 
-// Server API Routes
-import { ServerRoute as ApiAuthCatchAllImport } from "./routes/api/auth/$";
-import { ServerRoute as ApiMyChatbotImport } from "./routes/api/my-chatbot";
-import { ServerRoute as ApiChatbotsImport } from "./routes/api/chatbots";
-import { ServerRoute as ApiChatbotCountImport } from "./routes/api/chatbot-count";
-import { ServerRoute as ApiSetActiveChatbotImport } from "./routes/api/set-active-chatbot";
-import { ServerRoute as ApiEmbedGenerateTokenImport } from "./routes/api/embed/generate-token";
-import { ServerRoute as ApiChatImport } from "./routes/api/chat";
-import { ServerRoute as ApiEmbedChatImport } from "./routes/api/embed/chat/$platformIdentifier";
-import { ServerRoute as ApiEmbedChatbotImport } from "./routes/api/embed/chatbot/$identifier";
-import { ServerRoute as ApiChatHistoryImport } from "./routes/api/chat/history";
-import { ServerRoute as ApiChatAssignAgentImport } from "./routes/api/chat/assign-agent";
-import { ServerRoute as ApiUpdateChatStatusImport } from "./routes/api/update-chat-status";
-import { ServerRoute as ApiVoteImport } from "./routes/api/vote";
-import { ServerRoute as ApiVoteCountImport } from "./routes/api/vote-count";
-import { ServerRoute as ApiDocumentSourceImport } from "./routes/api/document-source";
-import { ServerRoute as ApiTextSourcesImport } from "./routes/api/text-sources";
-import { ServerRoute as ApiQuestionsImport } from "./routes/api/questions";
-import { ServerRoute as ApiScrapeImport } from "./routes/api/scrape";
-import { ServerRoute as ApiCrawlImport } from "./routes/api/crawl";
-import { ServerRoute as ApiSourcesCountImport } from "./routes/api/sources/count";
-import { ServerRoute as ApiTrainAgentImport } from "./routes/api/train-agent";
-import { ServerRoute as ApiTrainingStatusImport } from "./routes/api/training-status";
-import { ServerRoute as ApiLeadsImport } from "./routes/api/leads";
-import { ServerRoute as ApiFeedbackImport } from "./routes/api/feedback";
-import { ServerRoute as ApiReportIssueImport } from "./routes/api/report-issue";
-import { ServerRoute as ApiActivityImport } from "./routes/api/activity";
-import { ServerRoute as ApiVisitorAnalyticsImport } from "./routes/api/visitor-analytics";
-import { ServerRoute as ApiAgentActionsImport } from "./routes/api/agent-actions";
-import { ServerRoute as ApiWebhookPolarImport } from "./routes/api/webhook/polar";
-import { ServerRoute as ApiCheckoutImport } from "./routes/api/checkout";
-import { ServerRoute as ApiUploadDocumentsImport } from "./routes/api/upload-documents";
-import { ServerRoute as ApiUploadImagesImport } from "./routes/api/upload-images";
-import { ServerRoute as ApiSystemStatusImport } from "./routes/api/system-status";
-import { ServerRoute as ApiInviteMemberImport } from "./routes/api/invite-member";
-import { ServerRoute as ApiSubscriptionLimitsImport } from "./routes/api/subscription/limits";
-import { ServerRoute as ApiSuperadminOverviewImport } from "./routes/api/superadmin/overview";
-
 // Create / Update Routes
 const IndexRoute = IndexImport.update({
   id: "/",

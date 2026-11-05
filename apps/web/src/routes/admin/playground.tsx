@@ -35,11 +35,11 @@ function PlaygroundPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [chatStatus, setChatStatus] = useState("ready"); // 'ready' | 'submitted' | 'streaming'
   const [availableModels, setAvailableModels] = useState<any[]>([
-    { id: "gpt-4o-mini", displayName: "NzoOpen Mini Fast", badge: "Fast" },
+    { id: "gpt-6-luna", displayName: "NzoOpen 6 Luna", badge: "Latest" },
     { id: "gpt-4o", displayName: "NzoOpen 4 Basic", badge: "Flagship" },
     { id: "gemini-2.0-flash", displayName: "NzoGem 3 Cool", badge: "Popular" },
   ]);
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [selectedModel, setSelectedModel] = useState("gpt-6-luna");
 
   const loadBot = () => {
     fetch("/api/models")

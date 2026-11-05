@@ -41,6 +41,9 @@ export const auth = betterAuth({
     "http://localhost:3001",
     "http://localhost:3000",
     "http://localhost:*",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:*",
     "https://nzoai.vercel.app",
     "https://*.vercel.app",
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
@@ -90,19 +93,23 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session: any) => {
-          // Populate activeOrganizationId and activeChatbotId
-          const firstMembership = await db.query.member.findFirst({
-            where: eq(schema.member.userId, session.userId),
-          });
-
-          if (firstMembership) {
-            session.activeOrganizationId = firstMembership.organizationId;
-            const firstBot = await db.query.chatbot.findFirst({
-              where: eq(schema.chatbot.organizationId, firstMembership.organizationId),
+          try {
+            // Populate activeOrganizationId and activeChatbotId
+            const firstMembership = await db.query.member.findFirst({
+              where: eq(schema.member.userId, session.userId),
             });
-            if (firstBot) {
-              session.activeChatbotId = firstBot.id;
+
+            if (firstMembership) {
+              session.activeOrganizationId = firstMembership.organizationId;
+              const firstBot = await db.query.chatbot.findFirst({
+                where: eq(schema.chatbot.organizationId, firstMembership.organizationId),
+              });
+              if (firstBot) {
+                session.activeChatbotId = firstBot.id;
+              }
             }
+          } catch (err) {
+            console.warn("[auth] Non-fatal error resolving initial session organization:", err);
           }
 
           return { data: session };

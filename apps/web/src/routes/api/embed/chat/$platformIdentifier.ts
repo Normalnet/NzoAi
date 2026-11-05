@@ -149,7 +149,7 @@ export const ServerRoute = createServerFileRoute("/api/embed/chat/$platformIdent
       const tools = buildActiveTools(chatId, bot.id, actionsMap);
 
       const result = streamText({
-        model: getChatModel((bot as any).model || "gpt-4o-mini"),
+        model: getChatModel((bot as any).model || "gpt-6-luna"),
         system: prompt,
         messages: convertToCoreMessages(messages),
         tools,

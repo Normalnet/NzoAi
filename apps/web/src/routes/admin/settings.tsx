@@ -54,7 +54,7 @@ function SettingsPage() {
   const [suggestedMessages, setSuggestedMessages] = useState<string[]>([]);
   const [newPromptInput, setNewPromptInput] = useState("");
   const [hidePoweredBy, setHidePoweredBy] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [selectedModel, setSelectedModel] = useState("gpt-6-luna");
   const [botSaving, setBotSaving] = useState(false);
   const [botSuccess, setBotSuccess] = useState(false);
 
@@ -116,7 +116,7 @@ function SettingsPage() {
           setBotGreeting(b.initialMessage || "Hello! How can I assist you today?");
           setSuggestedMessages(b.suggestedMessages || ["What services do you offer?", "How do I get in touch?"]);
           setHidePoweredBy(Boolean(b.hidePoweredBy));
-          setSelectedModel(b.model || "gpt-4o-mini");
+          setSelectedModel(b.model || "gpt-6-luna");
         }
       }
     } catch (e) {
