@@ -2,8 +2,9 @@ import { createServerFileRoute } from "@/lib/server-route";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db";
-import { question, knowledge } from "../../db/schema";
+import { chatbot, question, knowledge } from "../../db/schema";
 import { requireAuthSession } from "../../middlewares/auth";
+import { generateEmbedding } from "../../lib/ai/embeddings";
 
 export const ServerRoute = createServerFileRoute("/api/questions").methods({
   GET: async ({ request }) => {
@@ -52,6 +53,26 @@ export const ServerRoute = createServerFileRoute("/api/questions").methods({
           answer,
         })
         .returning();
+
+      // Auto-index Q&A pair immediately
+      try {
+        const embedding = await generateEmbedding(qText);
+        await db.insert(knowledge).values({
+          id: uuidv4(),
+          chatbotId: activeBotId,
+          source: "qna",
+          sourceId: created.id,
+          content: `Question: ${qText}\nAnswer: ${answer}`,
+          embedding,
+          metadata: { question: qText, answer },
+        });
+        await db
+          .update(chatbot)
+          .set({ trainingStatus: "completed", lastTrainedAt: new Date(), updatedAt: new Date() })
+          .where(eq(chatbot.id, activeBotId));
+      } catch (e) {
+        console.warn("[questions] Auto-indexing warning:", e);
+      }
 
       return new Response(JSON.stringify({ success: true, question: created }), {
         headers: { "Content-Type": "application/json" },

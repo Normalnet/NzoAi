@@ -84,6 +84,7 @@ function PlaygroundPage() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setChatStatus("submitted");
+    const assistantMsgId = uuidv4();
 
     try {
       const res = await fetch("/api/chat", {
@@ -93,41 +94,113 @@ function PlaygroundPage() {
       });
 
       if (!res.ok) {
-        throw new Error("Chat request failed");
+        const errData = await res.json().catch(() => ({}));
+        setMessages([
+          ...newMessages,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: `⚠️ ${errData.error || `Request failed (${res.status})`}`,
+          },
+        ]);
+        setChatStatus("ready");
+        return;
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const jsonData = await res.json().catch(() => ({}));
+        setMessages([
+          ...newMessages,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: jsonData.message || jsonData.error || "Response received.",
+          },
+        ]);
+        setChatStatus("ready");
+        return;
       }
 
       setChatStatus("streaming");
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantText = "";
-      const assistantMsgId = uuidv4();
+      let fallbackToolMessage = "";
+      let buffer = "";
+
+      const processLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        if (trimmed.startsWith("0:")) {
+          try {
+            const textPart = JSON.parse(trimmed.slice(2));
+            if (typeof textPart === "string") {
+              assistantText += textPart;
+            }
+          } catch {}
+        } else if (trimmed.startsWith("3:")) {
+          try {
+            const errPart = JSON.parse(trimmed.slice(2));
+            if (typeof errPart === "string" && !assistantText) {
+              assistantText = `⚠️ ${errPart}`;
+            }
+          } catch {}
+        } else if (trimmed.startsWith("a:")) {
+          try {
+            const toolResult = JSON.parse(trimmed.slice(2));
+            if (toolResult?.result?.message && !fallbackToolMessage) {
+              fallbackToolMessage = toolResult.result.message;
+            } else if (toolResult?.result?.title && !fallbackToolMessage) {
+              fallbackToolMessage = `${toolResult.result.title}: ${toolResult.result.description || ""}`.trim();
+            }
+          } catch {}
+        }
+      };
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          
-          // AI SDK UI data stream parsing (format: 0:"text")
-          const lines = chunk.split("\n");
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
           for (const line of lines) {
-            if (line.startsWith('0:"')) {
-              try {
-                const textPart = JSON.parse(line.slice(2));
-                assistantText += textPart;
-              } catch (e) {}
-            }
+            processLine(line);
           }
 
-          setMessages([
-            ...newMessages,
-            { id: assistantMsgId, role: "assistant", content: assistantText },
-          ]);
+          if (assistantText || fallbackToolMessage) {
+            setMessages([
+              ...newMessages,
+              { id: assistantMsgId, role: "assistant", content: assistantText || fallbackToolMessage },
+            ]);
+          }
+        }
+        if (buffer) {
+          processLine(buffer);
         }
       }
+
+      setMessages([
+        ...newMessages,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          content: assistantText || fallbackToolMessage || "I couldn't generate a response. Please try again.",
+        },
+      ]);
       setChatStatus("ready");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setMessages([
+        ...newMessages,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          content: `⚠️ ${err?.message || "Connection error while contacting AI engine."}`,
+        },
+      ]);
       setChatStatus("ready");
     }
   };

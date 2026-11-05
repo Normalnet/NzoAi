@@ -70,11 +70,11 @@ function BubbleWidgetPage() {
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
         const json = await res.json();
-        if (json.message) {
-          setChatStatus("escalated");
+        if (json.message || json.error) {
+          if (json.message) setChatStatus("escalated");
           setMessages([
             ...newMessages,
-            { id: uuidv4(), role: "assistant", content: json.message },
+            { id: uuidv4(), role: "assistant", content: json.message || json.error },
           ]);
         }
         setStatus("ready");
@@ -87,45 +87,61 @@ function BubbleWidgetPage() {
       let assistantText = "";
       const assistantId = uuidv4();
       const toolInvocations: any[] = [];
+      let lineBuffer = "";
+
+      const processLine = (rawLine: string) => {
+        const line = rawLine.trim();
+        if (!line) return;
+        if (line.startsWith('0:')) {
+          try {
+            const textPart = JSON.parse(line.slice(2));
+            assistantText += textPart;
+          } catch (e) {}
+        } else if (line.startsWith('3:')) {
+          try {
+            const errPart = JSON.parse(line.slice(2));
+            if (!assistantText) {
+              assistantText = `⚠️ ${errPart}`;
+            }
+          } catch (e) {}
+        } else if (line.startsWith("9:")) {
+          try {
+            const toolPart = JSON.parse(line.slice(2));
+            toolInvocations.push({
+              state: "call",
+              toolCallId: toolPart.toolCallId,
+              toolName: toolPart.toolName,
+              args: toolPart.args,
+            });
+          } catch (e) {}
+        } else if (line.startsWith("a:")) {
+          try {
+            const resultPart = JSON.parse(line.slice(2));
+            const found = toolInvocations.find((t) => t.toolCallId === resultPart.toolCallId);
+            if (found) {
+              found.state = "result";
+              found.result = resultPart.result;
+            } else {
+              toolInvocations.push({
+                state: "result",
+                toolCallId: resultPart.toolCallId,
+                result: resultPart.result,
+              });
+            }
+          } catch (e) {}
+        }
+      };
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split("\n");
+          lineBuffer = lines.pop() || "";
+
           for (const line of lines) {
-            if (line.startsWith('0:"')) {
-              try {
-                const textPart = JSON.parse(line.slice(2));
-                assistantText += textPart;
-              } catch (e) {}
-            } else if (line.startsWith("9:")) {
-              try {
-                const toolPart = JSON.parse(line.slice(2));
-                toolInvocations.push({
-                  state: "call",
-                  toolCallId: toolPart.toolCallId,
-                  toolName: toolPart.toolName,
-                  args: toolPart.args,
-                });
-              } catch (e) {}
-            } else if (line.startsWith("a:")) {
-              try {
-                const resultPart = JSON.parse(line.slice(2));
-                const found = toolInvocations.find((t) => t.toolCallId === resultPart.toolCallId);
-                if (found) {
-                  found.state = "result";
-                  found.result = resultPart.result;
-                } else {
-                  toolInvocations.push({
-                    state: "result",
-                    toolCallId: resultPart.toolCallId,
-                    result: resultPart.result,
-                  });
-                }
-              } catch (e) {}
-            }
+            processLine(line);
           }
 
           const parts: any[] = [];
@@ -140,6 +156,25 @@ function BubbleWidgetPage() {
             });
           }
 
+          setMessages([
+            ...newMessages,
+            { id: assistantId, role: "assistant", content: assistantText, parts },
+          ]);
+        }
+
+        if (lineBuffer.trim()) {
+          processLine(lineBuffer);
+          const parts: any[] = [];
+          if (assistantText) {
+            parts.push({ type: "text", text: assistantText });
+          }
+          for (const inv of toolInvocations) {
+            parts.push({
+              type: `tool-${inv.toolName || "action"}`,
+              toolInvocation: inv,
+              result: inv.result,
+            });
+          }
           setMessages([
             ...newMessages,
             { id: assistantId, role: "assistant", content: assistantText, parts },

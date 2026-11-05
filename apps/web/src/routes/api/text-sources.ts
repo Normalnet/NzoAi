@@ -2,8 +2,10 @@ import { createServerFileRoute } from "@/lib/server-route";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db";
-import { textSource, knowledge } from "../../db/schema";
+import { chatbot, textSource, knowledge } from "../../db/schema";
 import { requireAuthSession } from "../../middlewares/auth";
+import { chunkDocument } from "../../lib/ai/document-chunking";
+import { generateBatchEmbeddings } from "../../lib/ai/embeddings";
 
 export const ServerRoute = createServerFileRoute("/api/text-sources").methods({
   GET: async ({ request }) => {
@@ -52,6 +54,30 @@ export const ServerRoute = createServerFileRoute("/api/text-sources").methods({
           content,
         })
         .returning();
+
+      // Auto-index text source immediately
+      try {
+        const chunks = chunkDocument(content, 500, 20);
+        if (chunks.length > 0) {
+          const embeddings = await generateBatchEmbeddings(chunks);
+          const rows = chunks.map((chunk, idx) => ({
+            id: uuidv4(),
+            chatbotId: activeBotId,
+            source: "text",
+            sourceId: created.id,
+            content: chunk,
+            embedding: embeddings[idx] || new Array(768).fill(0),
+            metadata: { title, chunkIndex: idx },
+          }));
+          await db.insert(knowledge).values(rows);
+          await db
+            .update(chatbot)
+            .set({ trainingStatus: "completed", lastTrainedAt: new Date(), updatedAt: new Date() })
+            .where(eq(chatbot.id, activeBotId));
+        }
+      } catch (e) {
+        console.warn("[text-sources] Auto-indexing warning:", e);
+      }
 
       return new Response(JSON.stringify({ success: true, textSource: created }), {
         headers: { "Content-Type": "application/json" },

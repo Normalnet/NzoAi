@@ -55,8 +55,8 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
         channel: "web",
       });
 
-      // If escalated, return disabled response
-      if (currentChat.status === "escalated") {
+      // In Playground (channel === "web"), allow the admin to continue testing even if a previous turn tested escalation
+      if (currentChat.status === "escalated" && currentChat.channel !== "web") {
         return new Response(
           JSON.stringify({ message: "AI responses are disabled while a human agent is active." }),
           { headers: { "Content-Type": "application/json" } }
@@ -90,6 +90,9 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
         messages: convertToCoreMessages(messages),
         tools,
         maxSteps: 5,
+        onError: ({ error }) => {
+          console.error("[api/chat streamText error]:", error);
+        },
         onFinish: async ({ response }) => {
           // Save assistant message and tool parts to DB
           if (response?.messages) {
@@ -105,7 +108,9 @@ export const ServerRoute = createServerFileRoute("/api/chat").methods({
         },
       });
 
-      return result.toDataStreamResponse();
+      return result.toDataStreamResponse({
+        getErrorMessage: (error: any) => error?.message || "An error occurred while generating the response.",
+      });
     } catch (err: any) {
       console.error("[api/chat error]:", err);
       return new Response(JSON.stringify({ error: err.message }), { status: err.statusCode || 500 });

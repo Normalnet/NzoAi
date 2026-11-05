@@ -2,8 +2,10 @@ import { createServerFileRoute } from "@/lib/server-route";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db";
-import { websiteSource, knowledge } from "../../db/schema";
+import { chatbot, websiteSource, knowledge } from "../../db/schema";
 import { requireAuthSession } from "../../middlewares/auth";
+import { chunkDocument } from "../../lib/ai/document-chunking";
+import { generateBatchEmbeddings } from "../../lib/ai/embeddings";
 
 export const ServerRoute = createServerFileRoute("/api/scrape").methods({
   GET: async ({ request }) => {
@@ -72,7 +74,6 @@ export const ServerRoute = createServerFileRoute("/api/scrape").methods({
         try {
           const fetchRes = await fetch(url, { headers: { "User-Agent": "NzoAI-Bot/1.0" } });
           const html = await fetchRes.text();
-          // Extract text and strip basic HTML tags
           markdown = html
             .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
             .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
@@ -96,6 +97,34 @@ export const ServerRoute = createServerFileRoute("/api/scrape").methods({
           urlsCrawled: 1,
         })
         .returning();
+
+      // Auto-index scraped website immediately
+      if (markdown && markdown.trim().length > 0) {
+        try {
+          const chunks = chunkDocument(markdown, 500, 20);
+          if (chunks.length > 0) {
+            const embeddings = await generateBatchEmbeddings(chunks);
+            const rows = chunks.map((chunk, idx) => ({
+              id: uuidv4(),
+              chatbotId: activeBotId,
+              source: "website",
+              sourceId: created.id,
+              content: chunk,
+              embedding: embeddings[idx] || new Array(768).fill(0),
+              metadata: { url, chunkIndex: idx },
+            }));
+            for (let i = 0; i < rows.length; i += 50) {
+              await db.insert(knowledge).values(rows.slice(i, i + 50));
+            }
+            await db
+              .update(chatbot)
+              .set({ trainingStatus: "completed", lastTrainedAt: new Date(), updatedAt: new Date() })
+              .where(eq(chatbot.id, activeBotId));
+          }
+        } catch (e) {
+          console.warn("[scrape] Auto-indexing warning:", e);
+        }
+      }
 
       return new Response(JSON.stringify({ success: true, websiteSource: created }), {
         headers: { "Content-Type": "application/json" },

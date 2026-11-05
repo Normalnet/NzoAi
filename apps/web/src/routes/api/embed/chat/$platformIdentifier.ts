@@ -154,6 +154,9 @@ export const ServerRoute = createServerFileRoute("/api/embed/chat/$platformIdent
         messages: convertToCoreMessages(messages),
         tools,
         maxSteps: 5,
+        onError: ({ error }) => {
+          console.error("[api/embed/chat streamText error]:", error);
+        },
         onFinish: async ({ response }) => {
           if (response?.messages) {
             for (const msg of response.messages) {
@@ -168,7 +171,12 @@ export const ServerRoute = createServerFileRoute("/api/embed/chat/$platformIdent
         },
       });
 
-      const responseStream = result.toDataStreamResponse();
+      const responseStream = result.toDataStreamResponse({
+        getErrorMessage: (err: unknown) => {
+          if (err instanceof Error) return err.message;
+          return String(err || "An unexpected error occurred");
+        },
+      });
       // Attach CORS headers
       for (const [key, value] of Object.entries(corsHeaders)) {
         responseStream.headers.set(key, value);

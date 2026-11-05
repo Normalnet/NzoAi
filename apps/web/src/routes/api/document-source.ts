@@ -2,9 +2,10 @@ import { createServerFileRoute } from "@/lib/server-route";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db";
-import { documentSource, knowledge } from "../../db/schema";
+import { chatbot, documentSource, knowledge } from "../../db/schema";
 import { requireAuthSession } from "../../middlewares/auth";
-import { extractTextFromDocument } from "../../lib/ai/document-chunking";
+import { chunkDocument, extractTextFromDocument } from "../../lib/ai/document-chunking";
+import { generateBatchEmbeddings } from "../../lib/ai/embeddings";
 
 export const ServerRoute = createServerFileRoute("/api/document-source").methods({
   GET: async ({ request }) => {
@@ -76,7 +77,41 @@ export const ServerRoute = createServerFileRoute("/api/document-source").methods
         })
         .returning();
 
-      return new Response(JSON.stringify({ success: true, document: created }), {
+      // Automatically chunk and index document into vector knowledge table immediately on upload
+      let indexedChunks = 0;
+      if (finalContent && finalContent.trim().length > 0) {
+        try {
+          const chunks = chunkDocument(finalContent, 500, 20);
+          if (chunks.length > 0) {
+            const embeddings = await generateBatchEmbeddings(chunks);
+            const rowsToInsert = chunks.map((chunk, idx) => ({
+              id: uuidv4(),
+              chatbotId: activeBotId,
+              source: "document",
+              sourceId: created.id,
+              content: chunk,
+              embedding: embeddings[idx] || new Array(768).fill(0),
+              metadata: { documentName: name, chunkIndex: idx },
+            }));
+            for (let i = 0; i < rowsToInsert.length; i += 50) {
+              await db.insert(knowledge).values(rowsToInsert.slice(i, i + 50));
+            }
+            indexedChunks = rowsToInsert.length;
+            await db
+              .update(chatbot)
+              .set({
+                trainingStatus: "completed",
+                lastTrainedAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .where(eq(chatbot.id, activeBotId));
+          }
+        } catch (indexErr) {
+          console.warn("[document-source] Auto-indexing warning:", indexErr);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, document: created, indexedChunks }), {
         headers: { "Content-Type": "application/json" },
       });
     } catch (err: any) {
